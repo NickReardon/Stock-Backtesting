@@ -15,9 +15,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QDateEdit, QGridLayout,
-    QMainWindow, QMenuBar, QPushButton, QSizePolicy,
-    QStatusBar, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDateEdit,
+    QGridLayout, QMainWindow, QMenuBar, QPushButton,
+    QSizePolicy, QStatusBar, QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -28,18 +28,6 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName(u"centralwidget")
         self.gridLayout = QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName(u"gridLayout")
-        self.ETF_Dropdown = QComboBox(self.centralwidget)
-        self.ETF_Dropdown.addItem("")
-        self.ETF_Dropdown.addItem("")
-        self.ETF_Dropdown.setObjectName(u"ETF_Dropdown")
-
-        self.gridLayout.addWidget(self.ETF_Dropdown, 0, 0, 1, 1)
-
-        self.startDateEdit = QDateEdit(self.centralwidget)
-        self.startDateEdit.setObjectName(u"startDateEdit")
-
-        self.gridLayout.addWidget(self.startDateEdit, 0, 1, 1, 1)
-
         self.endDateEdit = QDateEdit(self.centralwidget)
         self.endDateEdit.setObjectName(u"endDateEdit")
 
@@ -50,10 +38,29 @@ class Ui_MainWindow(object):
 
         self.gridLayout.addWidget(self.downloadButton, 0, 3, 1, 1)
 
+        self.ETF_Dropdown = QComboBox(self.centralwidget)
+        self.ETF_Dropdown.addItem("")
+        self.ETF_Dropdown.addItem("")
+        self.ETF_Dropdown.setObjectName(u"ETF_Dropdown")
+
+        self.gridLayout.addWidget(self.ETF_Dropdown, 0, 0, 1, 1)
+
         self.plotWidget = QWidget(self.centralwidget)
         self.plotWidget.setObjectName(u"plotWidget")
 
         self.gridLayout.addWidget(self.plotWidget, 1, 0, 1, 4)
+
+        self.startDateEdit = QDateEdit(self.centralwidget)
+        self.startDateEdit.setObjectName(u"startDateEdit")
+
+        self.gridLayout.addWidget(self.startDateEdit, 0, 1, 1, 1)
+
+        self.yAxisCheckbox = QCheckBox(self.centralwidget)
+        self.yAxisCheckbox.setObjectName(u"yAxisCheckbox")
+        self.yAxisCheckbox.setAutoFillBackground(True)
+        self.yAxisCheckbox.setChecked(False)
+
+        self.gridLayout.addWidget(self.yAxisCheckbox, 3, 0, 1, 1)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QMenuBar(MainWindow)
@@ -71,9 +78,10 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
+        self.downloadButton.setText(QCoreApplication.translate("MainWindow", u"Download", None))
         self.ETF_Dropdown.setItemText(0, QCoreApplication.translate("MainWindow", u"FNGU", None))
         self.ETF_Dropdown.setItemText(1, QCoreApplication.translate("MainWindow", u"FNGD", None))
 
-        self.downloadButton.setText(QCoreApplication.translate("MainWindow", u"Download", None))
+        self.yAxisCheckbox.setText(QCoreApplication.translate("MainWindow", u"Maintain Y-axis", None))
     # retranslateUi
 
