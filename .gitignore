@@ -1,0 +1,4 @@
+env/
+__pycache__
+FNGD_data.json
+FNGU_data.json
