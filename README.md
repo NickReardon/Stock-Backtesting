@@ -1,6 +1,6 @@
 # Stock-Backtesting
 
-## install directions
+## instructions
 
 ```sh
 $ python3 -m venv env
