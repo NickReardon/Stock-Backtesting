@@ -2,3 +2,7 @@ env/
 __pycache__
 FNGD_data.json
 FNGU_data.json
+all_symbols_data.json
+results.csv
+sma_data.csv
+transactions.csv
