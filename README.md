@@ -9,3 +9,9 @@ $ pip install -r requirements.txt
 $ python3 mainwindow.py
 $ deactivate
 ```
+
+## testing
+
+```sh
+$ python3 -m unittest test.py
+```
