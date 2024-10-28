@@ -66,6 +66,7 @@ def lower_bollinger_band(period_in_days, day, data, k=2):
     # Calculate the lower Bollinger Band
     return sma - (k * std_dev)
 
+'''
 # Example usage
 data = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 
         20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 
@@ -86,3 +87,4 @@ lower_band = lower_bollinger_band(5, 25, data)
 
 print("Upper Bollinger Band:", upper_band)
 print("Lower Bollinger Band:", lower_band)
+'''
