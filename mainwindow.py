@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QProgressB
 from PySide6.QtCore import QDate, QTimer, QThread, Signal, QCoreApplication
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from matplotlib.dates import AutoDateLocator, DateFormatter
+from matplotlib.ticker import MultipleLocator, MaxNLocator
 from mainwindow_ui import Ui_MainWindow
 from backtest import BacktestWindow
 from mpl_canvas import MplCanvas
@@ -11,10 +12,12 @@ from download_thread import DownloadThread
 from backtest_logic import run_backtest_algorithm, load_backtest_data, plot_strategy_performance
 from strats import strategies  # Import strategies
 
-# Define variable for date format
+# Define variables for date format, axis font size, and number of ticks
 DATE_FORMAT = '%m/%y'  # Default date format
 AXIS_FONT_SIZE = 10
 TITLE_FONT_SIZE = 12
+X_AXIS_TICK_FONT_SIZE = 8  # Font size for x-axis ticks
+NUMBER_OF_TICKS = 24       # Number of ticks on the x-axis
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -28,6 +31,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.canvas)
 
         self.initialize_ui()
+        self.initialize_blank_plot()
 
     def initialize_ui(self):
         # Set initial dates
@@ -45,6 +49,18 @@ class MainWindow(QMainWindow):
         self.ui.ETF_Dropdown.currentIndexChanged.connect(self.update_plot)
         self.ui.backtestButton.clicked.connect(self.open_backtest_window)
         self.ui.yAxisCheckbox.stateChanged.connect(self.update_plot)  # Connect checkbox state change to update_plot
+
+    def initialize_blank_plot(self):
+        # Initialize the plot with blank x and y axes and no ticks
+        self.canvas.axes.clear()
+        self.canvas.axes.set_xlim(0, 1)
+        self.canvas.axes.set_ylim(0, 1)
+        self.canvas.axes.set_xticks([])
+        self.canvas.axes.set_yticks([])
+        self.canvas.axes.set_title("Market Data", fontsize=TITLE_FONT_SIZE)
+        self.canvas.axes.set_xlabel("X-Axis")
+        self.canvas.axes.set_ylabel("Y-Axis")
+        self.canvas.draw()
 
     def populate_strategy_combobox(self):
         # Populate the strategyComboBox with strategy names
@@ -116,11 +132,14 @@ class MainWindow(QMainWindow):
         self.canvas.axes.xaxis.set_major_locator(locator)
         self.canvas.axes.xaxis.set_major_formatter(formatter)
 
-        # Rotate the date labels
-        self.canvas.axes.tick_params(axis='x', rotation=45, labelsize=AXIS_FONT_SIZE)
+        # Ensure a consistent number of ticks (e.g., 24 ticks)
+        self.canvas.axes.xaxis.set_major_locator(MaxNLocator(nbins=NUMBER_OF_TICKS))
+
+        # Rotate the date labels and set font size
+        self.canvas.axes.tick_params(axis='x', rotation=45, labelsize=X_AXIS_TICK_FONT_SIZE)
 
         # Add grid lines
-        self.canvas.axes.grid(True)
+        self.canvas.axes.grid(True, which='both', linestyle='--', linewidth=0.5)
 
         # Set title and labels
         self.canvas.axes.set_title(f"{ticker} Stock Price", fontsize=TITLE_FONT_SIZE)
@@ -160,7 +179,7 @@ class MainWindow(QMainWindow):
         selected_strategy = strategies[selected_strategy_name]
 
         # Run the backtest algorithm for the selected symbol and strategy
-        data, results_log = run_backtest_algorithm(selected_ticker, selected_strategy)
+        run_backtest_algorithm(selected_ticker, selected_strategy)
 
         # Open the backtest window and display the data
         self.backtest_window = BacktestWindow(self)
@@ -168,8 +187,9 @@ class MainWindow(QMainWindow):
         load_backtest_data(self.backtest_window)
 
         # Plot the strategy performance in the backtest window
-        plot_strategy_performance(self.backtest_window, data, results_log, selected_ticker)
+        plot_strategy_performance(self.backtest_window, selected_ticker, selected_strategy_name)
 
+    
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
