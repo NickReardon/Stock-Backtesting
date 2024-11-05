@@ -33,6 +33,8 @@ class MainWindow(QMainWindow):
         self.initialize_ui()
         self.initialize_blank_plot()
 
+        self.download_completed = False  # Add this flag
+
     def initialize_ui(self):
         # Set initial dates
         self.ui.startDateEdit.setDate(QDate(2021, 1, 1))
@@ -86,11 +88,14 @@ class MainWindow(QMainWindow):
         start_date = self.ui.startDateEdit.date().toString("yyyy-MM-dd")
         end_date = self.ui.endDateEdit.date().toString("yyyy-MM-dd")
 
+        
         # Get all symbols in the dropdown
         symbols = [self.ui.ETF_Dropdown.itemText(i) for i in range(self.ui.ETF_Dropdown.count())]
 
+        print("1Downloading data...")
+
         # Start the download in a separate thread
-        self.download_thread = DownloadThread(symbols, start_date, end_date)
+        self.download_thread = DownloadThread(symbols, start_date, end_date, self)
         self.download_thread.download_complete.connect(self.on_download_complete)
         self.download_thread.start()
 
@@ -101,6 +106,8 @@ class MainWindow(QMainWindow):
 
         # Stop the progress bar animation and set it to "Complete" after a delay
         QTimer.singleShot(500, self.complete_progress_bar)
+
+        self.download_completed = True  # Set the flag
 
     def complete_progress_bar(self):
         self.ui.progressBar.setMaximum(1)
@@ -165,6 +172,10 @@ class MainWindow(QMainWindow):
         return max_y_value
 
     def update_plot(self):
+        if not self.download_completed:
+            print("Download not completed yet. Plot update skipped.")
+            return
+
         # Get the selected symbol from the dropdown
         selected_ticker = self.ui.ETF_Dropdown.currentText()
         # Plot data for the selected symbol
