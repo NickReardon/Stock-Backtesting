@@ -6,3 +6,5 @@ all_symbols_data.json
 results.csv
 sma_data.csv
 transactions.csv
+bb_data.csv
+macd_data.csv
