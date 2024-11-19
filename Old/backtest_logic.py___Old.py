@@ -5,8 +5,14 @@ from PySide6.QtGui import QStandardItemModel, QStandardItem, Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.dates import AutoDateLocator, DateFormatter
-from plot_utils import plot_stock_price, plot_buy_sell_signals, DATE_FORMAT, AXIS_FONT_SIZE, TITLE_FONT_SIZE, X_AXIS_TICK_FONT_SIZE, NUMBER_OF_TICKS
-from strategy import strategies
+import matplotlib.pyplot as plt
+
+# Define variables for date format, axis font size, and number of ticks
+DATE_FORMAT = '%m/%y'  # Default date format
+AXIS_FONT_SIZE = 10
+TITLE_FONT_SIZE = 12
+X_AXIS_TICK_FONT_SIZE = 8  # Font size for x-axis ticks
+NUMBER_OF_TICKS = 24       # Number of ticks on the x-axis
 
 # Define variables for margins and font sizes
 LEFT_MARGIN_SMALL = 0.075
@@ -24,7 +30,6 @@ class MplCanvas(FigureCanvas):
         self.axes = fig.add_subplot(111)
         super().__init__(fig)
 
-# region Backtest Methods
 def run_backtest_algorithm(symbol, strategy):
     # Run the selected strategy
     strategy(symbol)
@@ -103,9 +108,7 @@ def load_backtest_data(backtest_window):
     # Remove any columns after the 4th in the backtest table
     while backtest_window.ui.resultsTable.model().columnCount() > 4:
         backtest_window.ui.resultsTable.model().removeColumn(4)
-# endregion
 
-# region Plotting Methods
 def plot_strategy_performance(backtest_window, ticker, strategy_name):
     data, transactions = load_data(ticker)
     if data.empty or transactions.empty:
@@ -115,12 +118,19 @@ def plot_strategy_performance(backtest_window, ticker, strategy_name):
     fig, canvas = setup_canvas(backtest_window)
     adjust_margins(fig)
 
-    # Get the plot function from the strategy
-    plot_function = strategies[strategy_name]['plot']
-    if plot_function:
-        plot_function(fig, data, transactions, ticker)  # Pass data and transactions
+    if strategy_name == "MACD":
+        plot_macd_strategy(fig, data, transactions, ticker)
+    else:
+        ax = fig.add_subplot(111)
+        plot_stock_price(ax, data)
 
+        if strategy_name == "SMA Crossover":
+            plot_sma_strategy(ax)
+        elif strategy_name == "Bollinger Bands":
+            plot_bollinger_bands_strategy(ax)
 
+        plot_buy_sell_signals(ax, transactions)
+        customize_plot(ax, ticker, strategy_name)
 
     canvas.draw()
 
@@ -153,6 +163,102 @@ def adjust_margins(fig):
     bottom_margin = BOTTOM_MARGIN_LARGE if height < 600 else BOTTOM_MARGIN_SMALL
     fig.subplots_adjust(left=left_margin, bottom=bottom_margin, right=1-right_margin, top=1-top_margin)
 
+
+    
+def plot_macd_strategy(fig, data, transactions, ticker):
+    macd_data = pd.read_csv('macd_data.csv', index_col=0, parse_dates=True)
+    print("MACD Data Head:", macd_data.head())
+
+    if macd_data.empty:
+        print("No MACD data to plot.")
+        return
+
+    ax1 = fig.add_subplot(211)
+    ax2 = fig.add_subplot(212, sharex=ax1)
+
+    plot_stock_price(ax1, data)
+    plot_buy_sell_signals(ax1, transactions)
+
+    ax1.set_title(f"{ticker} MACD Strategy Performance", fontsize=TITLE_FONT_SIZE)
+    ax1.set_ylabel("Price", fontsize=AXIS_FONT_SIZE)
+    ax1.legend()
+    ax1.grid(True)
+
+    # Calculate the difference between MACD and Signal Line
+    macd_diff = macd_data['MACD'] - macd_data['Signal_Line']
+
+    # Plot MACD in green where it is above the signal line and red where it is below
+    ax2.plot(macd_data.index, macd_data['Signal_Line'], label='Signal Line', color='brown')
+    ax2.fill_between(macd_data.index, macd_data['MACD'], macd_data['Signal_Line'],
+                     where=(macd_diff > 0), color='green', alpha=0.5, interpolate=True)
+    ax2.fill_between(macd_data.index, macd_data['MACD'], macd_data['Signal_Line'],
+                     where=(macd_diff <= 0), color='red', alpha=0.5, interpolate=True)
+    ax2.plot(macd_data.index, macd_data['MACD'], label='MACD', color='purple')
+
+    ax2.set_ylabel("MACD", fontsize=AXIS_FONT_SIZE)
+    ax2.legend()
+    ax2.grid(True)
+
+    locator = AutoDateLocator()
+    formatter = DateFormatter(DATE_FORMAT)
+
+    ax1.xaxis.set_major_locator(locator)
+    ax1.xaxis.set_major_formatter(formatter)
+   
+    # Ensure a consistent number of ticks (e.g., 24 ticks)
+    ax1.xaxis.set_major_locator(MaxNLocator(nbins=NUMBER_OF_TICKS))
+
+    # Rotate the date labels and set font size
+    ax1.tick_params(axis='x', rotation=45, labelsize=X_AXIS_TICK_FONT_SIZE)
+
+    # Add grid lines
+    ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+    ax2.xaxis.set_major_locator(locator)
+    ax2.xaxis.set_major_formatter(formatter)
+   
+    # Ensure a consistent number of ticks (e.g., 24 ticks)
+    ax2.xaxis.set_major_locator(MaxNLocator(nbins=NUMBER_OF_TICKS))
+
+    # Rotate the date labels and set font size
+    ax2.tick_params(axis='x', rotation=45, labelsize=X_AXIS_TICK_FONT_SIZE)
+
+    # Add grid lines
+    ax2.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+    fig.subplots_adjust(bottom=0.17)
+
+def plot_sma_strategy(ax):
+    sma_data = pd.read_csv('sma_data.csv', index_col=0, parse_dates=True)
+    print("SMA Data Head:", sma_data.head())
+
+    if sma_data.empty:
+        print("No SMA data to plot.")
+        return
+
+    # Calculate the difference between Short_MA and Long_MA
+    sma_diff = sma_data['Short_MA'] - sma_data['Long_MA']
+
+    # Plot Short_MA in green where it is above Long_MA and red where it is below
+    ax.plot(sma_data.index, sma_data['Long_MA'], label='Long MA', color='green')
+    ax.fill_between(sma_data.index, sma_data['Short_MA'], sma_data['Long_MA'],
+                    where=(sma_diff > 0), color='green', alpha=0.5, interpolate=True)
+    ax.fill_between(sma_data.index, sma_data['Short_MA'], sma_data['Long_MA'],
+                    where=(sma_diff <= 0), color='red', alpha=0.5, interpolate=True)
+    ax.plot(sma_data.index, sma_data['Short_MA'], label='Short MA', color='red')
+
+def plot_bollinger_bands_strategy(ax):
+    bb_data = pd.read_csv('bb_data.csv', index_col=0, parse_dates=True)
+    print("Bollinger Bands Data Head:", bb_data.head())
+
+    if bb_data.empty:
+        print("No Bollinger Bands data to plot.")
+        return
+
+    ax.plot(bb_data.index, bb_data['MA'], label='Moving Average', color='orange')
+    ax.plot(bb_data.index, bb_data['Upper_Band'], label='Upper Band', color='green')
+    ax.plot(bb_data.index, bb_data['Lower_Band'], label='Lower Band', color='red')
+
 def customize_plot(ax, ticker, strategy_name):
     # Increase the number of ticks on the x-axis
     locator = AutoDateLocator(maxticks={
@@ -176,6 +282,7 @@ def customize_plot(ax, ticker, strategy_name):
     # Add grid lines
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
+    
     # Set title and labels
     ax.set_title(f"{ticker} {strategy_name} Strategy Performance", fontsize=TITLE_FONT_SIZE)
     ax.set_xlabel("Date", fontsize=AXIS_FONT_SIZE)
@@ -186,4 +293,3 @@ def customize_plot(ax, ticker, strategy_name):
     
     # Adjust the bottom margin
     ax.figure.subplots_adjust(bottom=0.17)
-# endregion

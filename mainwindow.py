@@ -10,7 +10,7 @@ from backtest import BacktestWindow
 from mpl_canvas import MplCanvas
 from download_thread import DownloadThread
 from backtest_logic import run_backtest_algorithm, load_backtest_data, plot_strategy_performance
-from strats import strategies  # Import strategies
+from strategy import strategies
 
 # Define variables for date format, axis font size, and number of ticks
 DATE_FORMAT = '%m/%y'  # Default date format
@@ -45,7 +45,10 @@ class MainWindow(QMainWindow):
         self.ui.progressBar.setVisible(False)
 
         # Populate strategyComboBox
-        self.populate_strategy_combobox()
+        self.populate_strategy_combobox()\
+        
+        # Disable the backtest button initially
+        self.ui.backtestButton.setEnabled(False)
 
         # Connect UI components to their respective functions
         self.ui.downloadButton.clicked.connect(self.download_and_plot_data)
@@ -67,6 +70,7 @@ class MainWindow(QMainWindow):
 
     def populate_strategy_combobox(self):
         # Populate the strategyComboBox with strategy names
+        self.ui.strategyComboBox.clear()  # Clear existing items
         for strategy_name in strategies.keys():
             self.ui.strategyComboBox.addItem(strategy_name)
     # endregion
@@ -110,6 +114,8 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(500, self.complete_progress_bar)
 
         self.download_completed = True  # Set the flag
+        
+        self.ui.backtestButton.setEnabled(True)
 
     def complete_progress_bar(self):
         self.ui.progressBar.setMaximum(1)
@@ -193,7 +199,7 @@ class MainWindow(QMainWindow):
 
         # Get the selected strategy from the strategyComboBox
         selected_strategy_name = self.ui.strategyComboBox.currentText()
-        selected_strategy = strategies[selected_strategy_name]
+        selected_strategy = strategies[selected_strategy_name]['strategy']  # Access the 'strategy' key
 
         # Run the backtest algorithm for the selected symbol and strategy
         run_backtest_algorithm(selected_ticker, selected_strategy)
