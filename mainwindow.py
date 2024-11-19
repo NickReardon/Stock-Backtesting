@@ -35,6 +35,7 @@ class MainWindow(QMainWindow):
 
         self.download_completed = False  # Add this flag
 
+    # region Initialization Methods
     def initialize_ui(self):
         # Set initial dates
         self.ui.startDateEdit.setDate(QDate(2021, 1, 1))
@@ -68,33 +69,34 @@ class MainWindow(QMainWindow):
         # Populate the strategyComboBox with strategy names
         for strategy_name in strategies.keys():
             self.ui.strategyComboBox.addItem(strategy_name)
+    # endregion
 
+    # region Event Handlers
     def resizeEvent(self, event):
         # Adjust margins when the window is resized
         self.canvas.adjust_margins()
         self.canvas.draw()
         super().resizeEvent(event)
+    # endregion
 
+    # region Data Download Methods
     def download_and_plot_data(self):
         # Make the progress bar visible and animate it
-        self.ui.progressBar.setVisible(True)
-        self.ui.progressBar.setMinimum(0)
-        self.ui.progressBar.setMaximum(0)
-
-        # Process events to ensure the progress bar starts animating
-        QCoreApplication.processEvents()
+        self.AnimateProgressbar()
 
         # Get the start date and end date
         start_date = self.ui.startDateEdit.date().toString("yyyy-MM-dd")
         end_date = self.ui.endDateEdit.date().toString("yyyy-MM-dd")
 
-        
         # Get all symbols in the dropdown
         symbols = [self.ui.ETF_Dropdown.itemText(i) for i in range(self.ui.ETF_Dropdown.count())]
 
         print("1Downloading data...")
 
         # Start the download in a separate thread
+        self.initiate_download_thread(start_date, end_date, symbols)
+
+    def initiate_download_thread(self, start_date, end_date, symbols):
         self.download_thread = DownloadThread(symbols, start_date, end_date, self)
         self.download_thread.download_complete.connect(self.on_download_complete)
         self.download_thread.start()
@@ -116,7 +118,9 @@ class MainWindow(QMainWindow):
 
         # Hide the progress bar after 5 seconds
         QTimer.singleShot(5000, lambda: self.ui.progressBar.setVisible(False))
+    # endregion
 
+    # region Plotting Methods
     def plot_data(self, ticker):
         # Load data from the combined JSON file
         all_data = pd.read_json("all_symbols_data.json", orient="records")
@@ -180,7 +184,9 @@ class MainWindow(QMainWindow):
         selected_ticker = self.ui.ETF_Dropdown.currentText()
         # Plot data for the selected symbol
         self.plot_data(selected_ticker)
+    # endregion
 
+    # region Backtest Methods
     def open_backtest_window(self):
         # Get the selected symbol from the dropdown
         selected_ticker = self.ui.ETF_Dropdown.currentText()
@@ -199,8 +205,18 @@ class MainWindow(QMainWindow):
 
         # Plot the strategy performance in the backtest window
         plot_strategy_performance(self.backtest_window, selected_ticker, selected_strategy_name)
+    # endregion
 
-    
+    # region Progress Bar Methods
+    def AnimateProgressbar(self):
+        self.ui.progressBar.setVisible(True)
+        self.ui.progressBar.setMinimum(0)
+        self.ui.progressBar.setMaximum(0)
+
+        # Process events to ensure the progress bar starts animating
+        QCoreApplication.processEvents()
+    # endregion
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()

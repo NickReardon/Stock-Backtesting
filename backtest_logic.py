@@ -30,6 +30,7 @@ class MplCanvas(FigureCanvas):
         self.axes = fig.add_subplot(111)
         super().__init__(fig)
 
+# region Backtest Methods
 def run_backtest_algorithm(symbol, strategy):
     # Run the selected strategy
     strategy(symbol)
@@ -108,7 +109,9 @@ def load_backtest_data(backtest_window):
     # Remove any columns after the 4th in the backtest table
     while backtest_window.ui.resultsTable.model().columnCount() > 4:
         backtest_window.ui.resultsTable.model().removeColumn(4)
+# endregion
 
+# region Plotting Methods
 def plot_strategy_performance(backtest_window, ticker, strategy_name):
     data, transactions = load_data(ticker)
     if data.empty or transactions.empty:
@@ -175,7 +178,7 @@ def plot_buy_sell_signals(ax, transactions):
             markeredgecolor='black', markeredgewidth=1.5, lw=0, label='Buy Signal')
     ax.plot(sell_signals['Date'], sell_signals['Price'], 'v', markersize=12, color='red', 
             markeredgecolor='black', markeredgewidth=1.5, lw=0, label='Sell Signal')
-    
+
 def plot_macd_strategy(fig, data, transactions, ticker):
     macd_data = pd.read_csv('macd_data.csv', index_col=0, parse_dates=True)
     print("MACD Data Head:", macd_data.head())
@@ -293,7 +296,6 @@ def customize_plot(ax, ticker, strategy_name):
     # Add grid lines
     ax.grid(True, which='both', linestyle='--', linewidth=0.5)
 
-    
     # Set title and labels
     ax.set_title(f"{ticker} {strategy_name} Strategy Performance", fontsize=TITLE_FONT_SIZE)
     ax.set_xlabel("Date", fontsize=AXIS_FONT_SIZE)
@@ -304,3 +306,4 @@ def customize_plot(ax, ticker, strategy_name):
     
     # Adjust the bottom margin
     ax.figure.subplots_adjust(bottom=0.17)
+# endregion
