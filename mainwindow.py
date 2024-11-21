@@ -8,9 +8,8 @@ from matplotlib.ticker import MultipleLocator, MaxNLocator
 from mainwindow_ui import Ui_MainWindow
 from backtest import BacktestWindow
 from mpl_canvas import MplCanvas
-from download_thread import DownloadThread
 from backtest_logic import run_backtest_algorithm, load_backtest_data, plot_strategy_performance
-from strategy import strategies
+from strategy import strategies, DownloadThread
 
 # Define variables for date format, axis font size, and number of ticks
 DATE_FORMAT = '%m/%y'  # Default date format

@@ -19,12 +19,9 @@ $ python3 -m unittest integration_test.py
 
 # mvc architecture (by file)
 ## model
-- algos.py
 - strategy.py
-- ~~test.py~~
 - *.json
 - *.csv
-- download_thread.py
 ## view
 - mainwindow_ui.py
 - backtest_ui.py
@@ -34,4 +31,8 @@ $ python3 -m unittest integration_test.py
 ## controller
 - backtest_logic.py
 - mainwindow.py
-- ~~integration_test.py~~
+
+# testing
+- test.py
+- integration_test.py
+- algos.py
