@@ -32,10 +32,10 @@ def plot_buy_sell_signals(ax, transactions):
     sell_signals = transactions[transactions['Action'] == 'Sell']
     
     # Increase marker size and add edge color for better visibility
-    ax.plot(buy_signals['Date'], buy_signals['Price'], '^', markersize=12, color='green', 
-            markeredgecolor='black', markeredgewidth=1.5, lw=0, label='Buy Signal')
-    ax.plot(sell_signals['Date'], sell_signals['Price'], 'v', markersize=12, color='red', 
-            markeredgecolor='black', markeredgewidth=1.5, lw=0, label='Sell Signal')
+    ax.plot(buy_signals['Date'], buy_signals['Price'], '^', markersize=7, color='green', 
+            markeredgecolor='black', markeredgewidth=1, lw=0, label='Buy Signal')
+    ax.plot(sell_signals['Date'], sell_signals['Price'], 'v', markersize=7, color='red', 
+            markeredgecolor='black', markeredgewidth=1, lw=0, label='Sell Signal')
     
 def customize_plot(ax, ticker, strategy_name):
     # Increase the number of ticks on the x-axis

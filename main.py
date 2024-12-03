@@ -10,7 +10,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from plot_utils import plot_stock_price, plot_buy_sell_signals, DATE_FORMAT, AXIS_FONT_SIZE, TITLE_FONT_SIZE, X_AXIS_TICK_FONT_SIZE, NUMBER_OF_TICKS
 from mainwindow_ui import Ui_MainWindow
 from backtest_ui import Ui_Backtest
-from backtest import BacktestWindow
 from mpl_canvas import MplCanvas
 from strategy import strategies, DownloadThread
 
@@ -26,8 +25,8 @@ RIGHT_MARGIN_SMALL = 0.05
 RIGHT_MARGIN_LARGE = 0.1
 TOP_MARGIN_SMALL = 0.05
 TOP_MARGIN_LARGE = 0.1
-BOTTOM_MARGIN_SMALL = 0.1
 BOTTOM_MARGIN_LARGE = 0.2
+BOTTOM_MARGIN_SMALL = 0.1
 
 
 
@@ -128,6 +127,10 @@ class MainWindow(QMainWindow):
         for i in range(1, len(data)):
             color = 'green' if data['Close'].iloc[i] > data['Close'].iloc[i - 1] else 'red'
             self.canvas.axes.plot(data.index[i-1:i+1], data['Close'].iloc[i-1:i+1], color=color)
+
+        if self.ui.yAxisCheckbox.isChecked():
+            max_y_value = self.calculate_max_y_value(all_data['Symbol'].unique())
+            self.canvas.axes.set_ylim(0, max_y_value*1.1)
 
         self.customize_plot(self.canvas.axes, ticker, "Stock Price")
         self.canvas.draw()
