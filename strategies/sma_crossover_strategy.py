@@ -4,7 +4,7 @@ import pandas as pd
 
 strategy_name = "SMA Crossover"
 
-def sma_crossover_strategy(symbol, short_window=40, long_window=100, initial_balance=100000):
+def sma_crossover_strategy(symbol, short_window=20, long_window=40, initial_balance=100000):
     data = strat.read_and_prepare_data(symbol)
     data['Short_MA'] = data['Close'].rolling(window=short_window, min_periods=1).mean()
     data['Long_MA'] = data['Close'].rolling(window=long_window, min_periods=1).mean()

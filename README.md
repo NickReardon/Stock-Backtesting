@@ -29,8 +29,7 @@ $ python3 -m unittest integration_test.py
 - plot_utils.py
 - *.ui
 ## controller
-- backtest_logic.py
-- mainwindow.py
+- main.py
 
 # testing
 - test.py

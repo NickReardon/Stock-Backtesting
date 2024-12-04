@@ -1,6 +1,6 @@
 import sys
 import pandas as pd
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QTableWidget, QTableView, QHeaderView, QDialog
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QTableWidget, QTableView, QHeaderView, QDialog, QLabel
 from PySide6.QtCore import QDate, QTimer, QThread, Signal, QCoreApplication, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from matplotlib.dates import AutoDateLocator, DateFormatter
@@ -12,6 +12,9 @@ from mainwindow_ui import Ui_MainWindow
 from backtest_ui import Ui_Backtest
 from mpl_canvas import MplCanvas
 from strategy import strategies, DownloadThread
+from pubsub import PubSub
+import random
+
 
 # Define constants for date format, axis font size, number of ticks, and margins
 DATE_FORMAT = '%m/%y'
@@ -52,7 +55,41 @@ class MainWindow(QMainWindow):
 
         self.download_completed = False
 
-    # region Initialization Methods
+
+
+
+        self.pubsub = PubSub()
+        self.pubsub.subscribe("price_update", self.update_live_price)
+
+        # Simulate live price updates
+        self.simulate_live_price_updates()
+
+        # Update the status bar immediately
+        self.update_live_price(0, 0)
+
+    def simulate_live_price_updates(self):
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.check_and_generate_fake_price_update)
+        self.timer.start(5000)  # Update every 5 seconds
+
+    def check_and_generate_fake_price_update(self):
+        if self.download_completed:
+            self.generate_fake_price_update()
+
+    def generate_fake_price_update(self):
+        selected_ticker = self.ui.ETF_Dropdown.currentText()
+        data = pd.read_json("all_symbols_data.json", orient="records")
+        new_price = data.loc[data['Symbol'] == selected_ticker, 'Close'].iloc[-1]
+        delta = random.gauss(-(new_price * 0.01), new_price * 0.01)  # Simulate a price change (delta) with a Gaussian distribution
+        final_price = new_price + delta  # Apply the delta to the new price
+
+        self.pubsub.notify("price_update", final_price, delta)
+
+    def update_live_price(self, new_price, delta):
+        color = "green" if delta >= 0 else "red"
+        self.status_label.setText(f'<span style="color: {color};">Live Price: ${new_price:.2f} ({delta:+.2f})</span>')
+
+        # region Initialization Methods
     def initialize_ui(self):
         """Initialize the UI components and connect signals to slots."""
         self.ui.startDateEdit.setDate(QDate(2021, 1, 1))
@@ -64,6 +101,10 @@ class MainWindow(QMainWindow):
         self.ui.ETF_Dropdown.currentIndexChanged.connect(self.update_plot)
         self.ui.backtestButton.clicked.connect(self.open_backtest_window)
         self.ui.yAxisCheckbox.stateChanged.connect(self.update_plot)
+        self.status_label = QLabel()
+        self.status_label.setStyleSheet("padding-left:8px;background:rgba(255,255,255,255);color:black;font-weight:bold;")
+        self.status_label.setText("Live Price: $0.00")
+        self.statusBar().addWidget(self.status_label)
 
     def initialize_blank_plot(self):
         """Initialize the plot with blank x and y axes and no ticks."""
