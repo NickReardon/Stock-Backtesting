@@ -15,6 +15,13 @@ from strategy import strategies, DownloadThread
 from pubsub import PubSub
 import random
 
+#Data Adapters
+import yfinance_adapter as yahoo
+import json_adapter as json
+
+import alpha_vantage_adapter as alpha
+
+
 
 # Define constants for date format, axis font size, number of ticks, and margins
 DATE_FORMAT = '%m/%y'
@@ -44,6 +51,13 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+
+
+        #self.data_access = alpha.AlphaVantageAdapter()
+        
+        self.data_access = yahoo.YFinanceAdapter()
+
+
 
         # Set up the canvas for plotting
         self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
@@ -136,7 +150,9 @@ class MainWindow(QMainWindow):
 
     def initiate_download_thread(self, start_date, end_date, symbols):
         """Initiate the download thread for fetching data."""
-        self.download_thread = DownloadThread(symbols, start_date, end_date, self)
+        #data_access = yf.YFinanceAdapter()  # Use the YFinanceAdapter for data access
+        #data_access = aa.AlphaVantageAdapter()  # Use the AlphaAdvantageAdapter for data access
+        self.download_thread = DownloadThread(symbols, start_date, end_date, self.data_access)
         self.download_thread.download_complete.connect(self.on_download_complete)
         self.download_thread.start()
 
@@ -159,7 +175,12 @@ class MainWindow(QMainWindow):
     # region Plotting Methods
     def plot_data(self, ticker):
         """Plot the data for the selected ticker."""
-        all_data = pd.read_json("all_symbols_data.json", orient="records")
+        try:
+            all_data = pd.read_json("all_symbols_data.json", orient="records")
+        except ValueError as e:
+            print(f"Error reading JSON file: {e}")
+            return
+
         data = all_data[all_data['Symbol'] == ticker]
         data.loc[:, 'Date'] = pd.to_datetime(data['Date'])
         data.set_index('Date', inplace=True)
