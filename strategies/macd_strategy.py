@@ -1,8 +1,10 @@
+# macd_strategy.py
 import strategy as strat
 import plot_utils as utils
 import pandas as pd
 from matplotlib.dates import AutoDateLocator, DateFormatter
 from matplotlib.ticker import MaxNLocator
+from decorators import PlotDecorator
 
 strategy_name = "MACD"
 
@@ -23,9 +25,11 @@ def macd_strategy(symbol, initial_balance=100000):
     strat.add_summary_row(trade_log, total_gain_loss, balance, total_return, annual_return)
     strat.save_trade_data(trade_log, transactions)
 
+@PlotDecorator(customize_plot=True, adjust_margins=True)
 def plot_strategy(fig, data, transactions, ticker):
     macd_data = pd.read_csv('macd_data.csv', index_col=0, parse_dates=True)
     print("MACD Data Head:", macd_data.head())
+    print("MACD Data Tail:", macd_data.tail())
 
     if macd_data.empty:
         print("No MACD data to plot.")
@@ -44,6 +48,8 @@ def plot_strategy(fig, data, transactions, ticker):
 
     # Calculate the difference between MACD and Signal Line
     macd_diff = macd_data['MACD'] - macd_data['Signal_Line']
+    print("MACD Diff Head:", macd_diff.head())
+    print("MACD Diff Tail:", macd_diff.tail())
 
     # Plot MACD in green where it is above the signal line and red where it is below
     ax2.plot(macd_data.index, macd_data['Signal_Line'], label='Signal Line', color='brown')
@@ -62,26 +68,16 @@ def plot_strategy(fig, data, transactions, ticker):
 
     ax1.xaxis.set_major_locator(locator)
     ax1.xaxis.set_major_formatter(formatter)
-   
-    # Ensure a consistent number of ticks (e.g., 24 ticks)
-    ax1.xaxis.set_major_locator(MaxNLocator(nbins=utils.NUMBER_OF_TICKS))
-
-    # Rotate the date labels and set font size
-    ax1.tick_params(axis='x', rotation=45, labelsize=utils.X_AXIS_TICK_FONT_SIZE)
-
-    # Add grid lines
-    ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
-
     ax2.xaxis.set_major_locator(locator)
     ax2.xaxis.set_major_formatter(formatter)
-   
+
     # Ensure a consistent number of ticks (e.g., 24 ticks)
+    ax1.xaxis.set_major_locator(MaxNLocator(nbins=utils.NUMBER_OF_TICKS))
+    ax1.tick_params(axis='x', rotation=45, labelsize=utils.X_AXIS_TICK_FONT_SIZE)
+    ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
+
     ax2.xaxis.set_major_locator(MaxNLocator(nbins=utils.NUMBER_OF_TICKS))
-
-    # Rotate the date labels and set font size
     ax2.tick_params(axis='x', rotation=45, labelsize=utils.X_AXIS_TICK_FONT_SIZE)
-
-    # Add grid lines
     ax2.grid(True, which='both', linestyle='--', linewidth=0.5)
 
     fig.subplots_adjust(bottom=0.17)

@@ -308,9 +308,14 @@ def plot_strategy_performance(backtest_window, ticker, strategy_name):
 
     fig, canvas = setup_canvas(backtest_window)
     adjust_margins(fig)
-    plot_function = strategies[strategy_name]['plot']
+
+    plot_function = strategies[strategy_name].get('plot')
     if plot_function:
+        print(f"Plotting strategy: {strategy_name}")
         plot_function(fig, data, transactions, ticker)
+    else:
+        print(f"No plot function found for strategy: {strategy_name}")
+
     canvas.draw()
 
 def load_data(ticker):
