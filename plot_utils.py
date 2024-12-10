@@ -1,5 +1,4 @@
 # plot_utils.py
-
 import pandas as pd
 from matplotlib.dates import AutoDateLocator, DateFormatter
 from matplotlib.ticker import MaxNLocator
@@ -20,8 +19,12 @@ TOP_MARGIN_LARGE = 0.1
 BOTTOM_MARGIN_LARGE = 0.2
 BOTTOM_MARGIN_SMALL = 0.1
 
-def plot_stock_price(ax, data):
-    ax.plot(data.index, data['Close'], label='Close Price', color='black')
+def plot_stock_price(ax, data, ticker):
+    ax.plot(data.index, data['Close'], label='Close Price')
+    ax.set_title(f"{ticker} Stock Price")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Price")
+    ax.legend()
 
 def plot_buy_sell_signals(ax, transactions):
     buy_signals = transactions[transactions['Action'] == 'Buy']

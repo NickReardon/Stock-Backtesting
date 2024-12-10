@@ -16,7 +16,6 @@ class MplCanvas(FigureCanvas):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
         super().__init__(fig)
-        self.adjust_margins()
 
     def adjust_margins(self):
         # Adjust margins based on the current size of the canvas

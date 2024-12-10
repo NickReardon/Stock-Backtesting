@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from strategy import StrategyBase
 import plot_utils as utils
 from matplotlib.dates import AutoDateLocator, DateFormatter
+from matplotlib.ticker import MaxNLocator
 
 strategy_name = "MACD"
 
@@ -37,7 +38,7 @@ class MACDStrategy(StrategyBase):
         ax1 = fig.add_subplot(211)
         ax2 = fig.add_subplot(212, sharex=ax1)
 
-        utils.plot_stock_price(ax1, data)
+        utils.plot_stock_price(ax1, data, ticker)
         utils.plot_buy_sell_signals(ax1, transactions)
 
         ax1.set_title(f"{ticker} MACD Strategy Performance", fontsize=utils.TITLE_FONT_SIZE)

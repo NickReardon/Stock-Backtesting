@@ -14,12 +14,17 @@ from mpl_canvas import MplCanvas
 from strategy import strategies, DownloadThread
 from pubsub import PubSub
 import random
+from decorators import PlotDecorator
+import json
+import boto3
 
 #Data Adapters
 import yfinance_adapter as yahoo
-import json_adapter as json
+#import json_adapter as json
+#import alpha_vantage_adapter as alpha
+import polygon_adapter as polygon
 
-import alpha_vantage_adapter as alpha
+
 
 
 
@@ -39,6 +44,9 @@ BOTTOM_MARGIN_LARGE = 0.2
 BOTTOM_MARGIN_SMALL = 0.1
 
 
+UPDATE_TIME = 12500  # Update every 5 seconds
+
+
 
 class BacktestWindow(QDialog):
     def __init__(self, parent=None):
@@ -52,15 +60,15 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
-
-        #self.data_access = alpha.AlphaVantageAdapter()
-        
         self.data_access = yahoo.YFinanceAdapter()
+        #self.data_access = polygon.PolygonAdapter('zvapoP4mOfvfMpFWHp1Gqllh3Jcflc4b')
 
-
+        self.updateTime = UPDATE_TIME
 
         # Set up the canvas for plotting
-        self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
+        base_canvas = MplCanvas(self, width=5, height=4, dpi=100)
+        self.canvas = PlotDecorator(base_canvas, customize_plot=True, adjust_margins=True)
+
         layout = QVBoxLayout(self.ui.plotWidget)
         layout.addWidget(self.canvas)
 
@@ -69,22 +77,68 @@ class MainWindow(QMainWindow):
 
         self.download_completed = False
 
-
-
-
         self.pubsub = PubSub()
         self.pubsub.subscribe("price_update", self.update_live_price)
 
         # Simulate live price updates
-        self.simulate_live_price_updates()
+        #self.simulate_live_price_updates()
 
         # Update the status bar immediately
         self.update_live_price(0, 0)
 
+    def plot_data(self, ticker):
+        """Plot the data for the selected ticker."""
+        data, transactions = load_data(ticker)
+        if data.empty or transactions.empty:
+            print("No data to plot.")
+            return
+
+        self.canvas.plot(plot_stock_price, data, transactions, ticker)
+
     def simulate_live_price_updates(self):
+
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.check_and_generate_fake_price_update)
-        self.timer.start(5000)  # Update every 5 seconds
+
+        self.timer.timeout.connect(self.generate_fake_price_update_from_lambda)
+
+        #self.timer.timeout.connect(self.check_and_generate_fake_price_update)
+
+        self.timer.start(UPDATE_TIME)  
+
+    def generate_fake_price_update_from_lambda(self):
+        selected_ticker = self.ui.ETF_Dropdown.currentText()
+        data = pd.read_json("all_symbols_data.json", orient="records")
+        new_price = data.loc[data['Symbol'] == selected_ticker, 'Close'].iloc[-1]
+
+        # Invoke the AWS Lambda function to get the delta
+        lambda_client = boto3.client('lambda', region_name='us-east-1')
+        response = lambda_client.invoke(
+            FunctionName='getPriceDelta',  # Replace with your Lambda function name
+            InvocationType='RequestResponse',
+            Payload=json.dumps({
+                'symbol': selected_ticker,
+                'current_price': new_price
+            })
+        )
+        
+        payload = response['Payload'].read()
+        result = json.loads(payload.decode('utf-8'))
+        
+        # Log the response for debugging
+        print("Lambda response:", result)
+        
+        # Parse the body content
+        if 'body' in result:
+            body = json.loads(result['body'])
+            if 'delta' in body:
+                delta = body['delta']
+                final_price = new_price + delta  # Apply the delta to the new price
+                self.pubsub.notify("price_update", final_price, delta)
+            else:
+                print("Error: 'delta' key not found in the body")
+        else:
+            print("Error: 'body' key not found in the response")
+
 
     def check_and_generate_fake_price_update(self):
         if self.download_completed:
@@ -162,6 +216,9 @@ class MainWindow(QMainWindow):
         self.plot_data(selected_ticker)
         QTimer.singleShot(500, self.complete_progress_bar)
         self.download_completed = True
+
+        self.generate_fake_price_update_from_lambda()
+
         self.ui.backtestButton.setEnabled(True)
 
     def complete_progress_bar(self):
@@ -211,6 +268,8 @@ class MainWindow(QMainWindow):
         if not self.download_completed:
             print("Download not completed yet. Plot update skipped.")
             return
+        
+        self.generate_fake_price_update_from_lambda()
         selected_ticker = self.ui.ETF_Dropdown.currentText()
         self.plot_data(selected_ticker)
 
@@ -245,7 +304,10 @@ class MainWindow(QMainWindow):
         selected_strategy = strategies[selected_strategy_name]['strategy']
         run_backtest_algorithm(selected_ticker, selected_strategy)
         self.backtest_window = BacktestWindow(self)
-        self.backtest_window.show()
+        #self.backtest_window.show()
+
+        self.backtest_window.showMaximized()
+
         load_backtest_data(self.backtest_window)
         plot_strategy_performance(self.backtest_window, selected_ticker, selected_strategy_name)
     # endregion
@@ -260,6 +322,7 @@ class MainWindow(QMainWindow):
     # endregion
 
 def run_backtest_algorithm(symbol, strategy):
+
     """Run the selected backtest strategy."""
     strategy(symbol)
     results_log = pd.read_csv('results.csv')

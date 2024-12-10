@@ -25,7 +25,7 @@ class BollingerBandsStrategy(StrategyBase):
 
     def plot_strategy(self, fig: plt.Figure, data: pd.DataFrame, transactions: list, ticker: str):
         ax = fig.add_subplot(111)
-        utils.plot_stock_price(ax, data)
+        utils.plot_stock_price(ax, data, ticker)
 
         bb_data = pd.read_csv('bb_data.csv', index_col=0, parse_dates=True)
         print("Bollinger Bands Data Head:", bb_data.head())

@@ -30,7 +30,7 @@ class SMACrossoverStrategy(StrategyBase):
         print("Plotting SMA Crossover Strategy")
         
         ax = fig.add_subplot(111)
-        utils.plot_stock_price(ax, data)
+        utils.plot_stock_price(ax, data, ticker)
         
         sma_data = pd.read_csv('sma_data.csv', index_col=0, parse_dates=True)
         print("SMA Data Head:", sma_data.head())
