@@ -44,7 +44,7 @@ BOTTOM_MARGIN_LARGE = 0.2
 BOTTOM_MARGIN_SMALL = 0.1
 
 
-UPDATE_TIME = 12500  # Update every 5 seconds
+UPDATE_TIME = 2500  # Update every 5 seconds
 
 
 
@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
         self.pubsub.subscribe("price_update", self.update_live_price)
 
         # Simulate live price updates
-        #self.simulate_live_price_updates()
+        self.simulate_live_price_updates()
 
         # Update the status bar immediately
         self.update_live_price(0, 0)
