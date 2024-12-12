@@ -1,7 +1,7 @@
 # macd_strategy.py
 import pandas as pd
 import matplotlib.pyplot as plt
-from strategy import StrategyBase
+from model import StrategyBase
 import plot_utils as utils
 from matplotlib.dates import AutoDateLocator, DateFormatter
 from matplotlib.ticker import MaxNLocator

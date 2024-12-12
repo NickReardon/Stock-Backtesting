@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from strategy import StrategyBase
+from model import StrategyBase
 import plot_utils as utils
 
 strategy_name = "Bollinger Bands"

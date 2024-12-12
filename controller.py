@@ -8,10 +8,9 @@ from matplotlib.ticker import MaxNLocator
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from plot_utils import plot_stock_price, plot_buy_sell_signals, DATE_FORMAT, AXIS_FONT_SIZE, TITLE_FONT_SIZE, X_AXIS_TICK_FONT_SIZE, NUMBER_OF_TICKS
-from mainwindow_ui import Ui_MainWindow
-from backtest_ui import Ui_Backtest
+from view import Ui_MainWindow, Ui_Backtest
 from mpl_canvas import MplCanvas
-from strategy import strategies, DownloadThread
+from model import strategies, DownloadThread
 from pubsub import PubSub
 import random
 from decorators import PlotDecorator
@@ -99,6 +98,7 @@ class MainWindow(QMainWindow):
 
         self.timer = QTimer(self)
 
+        
         self.timer.timeout.connect(self.generate_fake_price_update_from_lambda)
 
         #self.timer.timeout.connect(self.check_and_generate_fake_price_update)
