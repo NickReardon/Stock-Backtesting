@@ -1,4 +1,6 @@
 import sys
+import logging
+import os
 import pandas as pd
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QTableWidget, QTableView, QHeaderView, QDialog, QLabel
 from PySide6.QtCore import QDate, QTimer, QThread, Signal, QCoreApplication, Qt
@@ -16,12 +18,12 @@ import random
 from decorators import PlotDecorator
 import json
 import boto3
+from botocore.exceptions import BotoCoreError
 
 #Data Adapters
 import yfinance_adapter as yahoo
 #import json_adapter as json
 #import alpha_vantage_adapter as alpha
-import polygon_adapter as polygon
 
 
 
@@ -43,7 +45,11 @@ BOTTOM_MARGIN_LARGE = 0.2
 BOTTOM_MARGIN_SMALL = 0.1
 
 
-UPDATE_TIME = 2500  # Update every 5 seconds
+UPDATE_TIME = 2500  # Update every 2.5 seconds
+
+LAMBDA_ENABLED = os.getenv("BACKTEST_ENABLE_LAMBDA", "0").strip().lower() in {"1", "true", "yes", "on"}
+AWS_REGION = os.getenv("BACKTEST_AWS_REGION", "us-east-1")
+LAMBDA_FUNCTION_NAME = os.getenv("BACKTEST_LAMBDA_FUNCTION_NAME", "getPriceDelta")
 
 
 
@@ -60,7 +66,6 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         self.data_access = yahoo.YFinanceAdapter()
-        #self.data_access = polygon.PolygonAdapter('zvapoP4mOfvfMpFWHp1Gqllh3Jcflc4b')
 
         self.updateTime = UPDATE_TIME
 
@@ -79,8 +84,9 @@ class MainWindow(QMainWindow):
         self.pubsub = PubSub()
         self.pubsub.subscribe("price_update", self.update_live_price)
 
-        # Simulate live price updates
-        self.simulate_live_price_updates()
+        # AWS-backed updates are opt-in and disabled by default.
+        if LAMBDA_ENABLED:
+            self.simulate_live_price_updates()
 
         # Update the status bar immediately
         self.update_live_price(0, 0)
@@ -106,38 +112,43 @@ class MainWindow(QMainWindow):
         self.timer.start(UPDATE_TIME)  
 
     def generate_fake_price_update_from_lambda(self):
+        """Fetch an optional price delta without embedding AWS credentials."""
+        if not LAMBDA_ENABLED:
+            return
+
         selected_ticker = self.ui.ETF_Dropdown.currentText()
         data = pd.read_json("all_symbols_data.json", orient="records")
-        new_price = data.loc[data['Symbol'] == selected_ticker, 'Close'].iloc[-1]
+        new_price = data.loc[data["Symbol"] == selected_ticker, "Close"].iloc[-1]
 
-        # Invoke the AWS Lambda function to get the delta
-        lambda_client = boto3.client('lambda', region_name='us-east-1')
-        response = lambda_client.invoke(
-            FunctionName='getPriceDelta',  # Replace with your Lambda function name
-            InvocationType='RequestResponse',
-            Payload=json.dumps({
-                'symbol': selected_ticker,
-                'current_price': new_price
-            })
-        )
-        
-        payload = response['Payload'].read()
-        result = json.loads(payload.decode('utf-8'))
-        
-        # Log the response for debugging
-        print("Lambda response:", result)
-        
-        # Parse the body content
-        if 'body' in result:
-            body = json.loads(result['body'])
-            if 'delta' in body:
-                delta = body['delta']
-                final_price = new_price + delta  # Apply the delta to the new price
-                self.pubsub.notify("price_update", final_price, delta)
-            else:
-                print("Error: 'delta' key not found in the body")
+        try:
+            # boto3 uses its standard credential chain: SSO/profile, environment,
+            # workload identity, or an attached IAM role.
+            lambda_client = boto3.client("lambda", region_name=AWS_REGION)
+            response = lambda_client.invoke(
+                FunctionName=LAMBDA_FUNCTION_NAME,
+                InvocationType="RequestResponse",
+                Payload=json.dumps({
+                    "symbol": selected_ticker,
+                    "current_price": new_price
+                })
+            )
+            result = json.loads(response["Payload"].read().decode("utf-8"))
+        except BotoCoreError as error:
+            logging.warning("AWS Lambda price update unavailable: %s", error)
+            return
+
+        body = result.get("body") if isinstance(result, dict) else None
+        if isinstance(body, str):
+            try:
+                body = json.loads(body)
+            except json.JSONDecodeError:
+                body = None
+
+        if isinstance(body, dict) and "delta" in body:
+            delta = body["delta"]
+            self.pubsub.notify("price_update", new_price + delta, delta)
         else:
-            print("Error: 'body' key not found in the response")
+            logging.warning("AWS Lambda response did not contain a valid delta")
 
 
     def check_and_generate_fake_price_update(self):
