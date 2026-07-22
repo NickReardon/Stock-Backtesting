@@ -18,6 +18,7 @@ import random
 from decorators import PlotDecorator
 import json
 import boto3
+from botocore.exceptions import BotoCoreError
 
 #Data Adapters
 import yfinance_adapter as yahoo
@@ -132,7 +133,7 @@ class MainWindow(QMainWindow):
                 })
             )
             result = json.loads(response["Payload"].read().decode("utf-8"))
-        except boto3.exceptions.BotoCoreError as error:
+        except BotoCoreError as error:
             logging.warning("AWS Lambda price update unavailable: %s", error)
             return
 
