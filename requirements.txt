@@ -38,6 +38,6 @@ shiboken6==6.8.0.1
 six==1.16.0
 soupsieve==2.8.4
 tzdata==2024.2
-urllib3==2.7.0
+urllib3==2.8.0
 webencodings==0.5.1
 yfinance==0.2.44
