@@ -249,8 +249,8 @@ class MainWindow(QMainWindow):
             print(f"Error reading JSON file: {e}")
             return
 
-        data = all_data[all_data['Symbol'] == ticker]
-        data.loc[:, 'Date'] = pd.to_datetime(data['Date'])
+        data = all_data[all_data['Symbol'] == ticker].copy()
+        data['Date'] = pd.to_datetime(data['Date'])
         data.set_index('Date', inplace=True)
 
         self.canvas.axes.clear()
