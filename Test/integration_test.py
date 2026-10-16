@@ -1,185 +1,105 @@
+import os
 import sys
+import tempfile
 import unittest
+
+import numpy as np
+import pandas as pd
 from PySide6.QtWidgets import QApplication
 from PySide6.QtTest import QTest
-from PySide6.QtCore import Qt, QDate, QEventLoop, QTimer
-from mainwindow import MainWindow
+from PySide6.QtCore import Qt, QDate
+
+from controller import MainWindow
+from yfinance_adapter import YFinanceAdapter
+
+DOWNLOAD_TIMEOUT_MS = 10000
+POLL_INTERVAL_MS = 100
+
+
+class FakeYFinanceAdapter(YFinanceAdapter):
+    """Serves deterministic prices so the test never touches the network."""
+
+    def fetch_data(self, symbol, start_date, end_date):
+        dates = pd.bdate_range(start=start_date, end=end_date, name="Date")
+        # A sine wave over a drift gives the strategies real crossovers to trade on.
+        steps = np.arange(len(dates))
+        close = 100 + steps * 0.05 + 10 * np.sin(steps / 15)
+        return pd.DataFrame({
+            "Open": close,
+            "High": close + 1,
+            "Low": close - 1,
+            "Close": close,
+            "Volume": 1_000_000,
+        }, index=dates)
+
 
 class TestIntegration(unittest.TestCase):
     def setUp(self):
-        if QApplication.instance() is None:
-            self.app = QApplication(sys.argv)
-        else:
-            self.app = QApplication.instance()
+        # The app reads and writes its JSON and CSV files in the working directory.
+        self.original_cwd = os.getcwd()
+        self.temp_dir = tempfile.TemporaryDirectory()
+        os.chdir(self.temp_dir.name)
+
+        self.app = QApplication.instance() or QApplication(sys.argv)
         self.window = MainWindow()
+        self.window.data_access = FakeYFinanceAdapter()
         self.window.show()
-        self.window.initialize_ui()
 
     def tearDown(self):
         self.window.close()
-        self.app.quit()
-        self.app = None
+        os.chdir(self.original_cwd)
+        self.temp_dir.cleanup()
+
+    def download(self):
+        """Click download and wait until the progress bar reports completion."""
+        self.window.ui.startDateEdit.setDate(QDate(2021, 1, 1))
+        self.window.ui.endDateEdit.setDate(QDate(2022, 12, 31))
+        self.window.ui.ETF_Dropdown.setCurrentIndex(0)
+
+        QTest.mouseClick(self.window.ui.downloadButton, Qt.LeftButton)
+        self.assertTrue(self.window.download_thread.wait(DOWNLOAD_TIMEOUT_MS), "Download thread did not finish")
+
+        elapsed = 0
+        while self.window.ui.progressBar.format() != "Complete" and elapsed < DOWNLOAD_TIMEOUT_MS:
+            QTest.qWait(POLL_INTERVAL_MS)
+            elapsed += POLL_INTERVAL_MS
+
+        self.assertEqual(self.window.ui.progressBar.format(), "Complete", "Download did not complete within the timeout period")
 
     def test_select_etf_from_combobox(self):
-        # Simulate opening the comboBox
         QTest.mouseClick(self.window.ui.ETF_Dropdown, Qt.LeftButton)
-        print("ComboBox opened")
-
-        QTest.qWait(1000)  # Wait for the comboBox to open
-
-        # Simulate selecting an item from the comboBox
         QTest.keyClick(self.window.ui.ETF_Dropdown, Qt.Key_Down)
-
-        QTest.qWait(1000)  # Wait for the comboBox to select the item
-
         QTest.keyClick(self.window.ui.ETF_Dropdown, Qt.Key_Enter)
-        print("ComboBox item selected")
-
-        QTest.qWait(1000)  # Wait for the comboBox to close
-
-        # Explicitly close the comboBox
         self.window.ui.ETF_Dropdown.hidePopup()
-        print("ComboBox closed")
 
-        QTest.qWait(1000)  # Wait for the comboBox to close
-
-        # Verify the selected item
-        selected_index = self.window.ui.ETF_Dropdown.currentIndex()
-        self.assertNotEqual(selected_index, -1, "No item selected in the comboBox")
-        print(f"Selected index: {selected_index}")
+        self.assertNotEqual(self.window.ui.ETF_Dropdown.currentIndex(), -1, "No item selected in the comboBox")
 
     def test_download_button(self):
-        # Simulate selecting a date range
-        self.window.ui.startDateEdit.setDate(QDate(2021, 1, 1))
-        self.window.ui.endDateEdit.setDate(QDate.currentDate())
-                                           
-        # Simulate selecting a symbol from the dropdown
-        self.window.ui.ETF_Dropdown.setCurrentIndex(0)  # Assuming the first item is valid
+        self.download()
 
-        # Add debug print to check if the button is being clicked
-        print("Clicking the download button")
-        
-        # Simulate clicking the download button
-        QTest.mouseClick(self.window.ui.downloadButton, Qt.LeftButton)
-        print("Download button clicked")
-
-        # Create an event loop to wait for the thread to finish
-        loop = QEventLoop()
-        self.window.download_thread.finished.connect(loop.quit)
-
-        # Wait for the download thread to finish
-        loop.exec_()
-
-        # Polling loop to check for download completion
-        timeout = 1500  # 5 seconds
-        interval = 100  # 100 milliseconds
-        elapsed = 0
-
-        while elapsed < timeout:
-            if self.window.ui.progressBar.maximum() == 100:
-                break
-            QTest.qWait(interval)
-            elapsed += interval
-            print("Elapsed time:", elapsed)
-
-        print("_+____Elapsed time:", elapsed)
-
-        # Check if the progress bar is set to "Complete"
-        self.assertEqual(self.window.ui.progressBar.maximum(), 1, "Download did not complete within the timeout period")
+        self.assertTrue(os.path.exists("all_symbols_data.json"), "Downloaded data was not saved")
+        self.assertTrue(self.window.ui.backtestButton.isEnabled(), "Backtest button not enabled after download")
 
     def test_backtest(self):
+        self.download()
+        self.window.ui.strategyComboBox.setCurrentIndex(0)
 
-        self.window.ui.startDateEdit.setDate(QDate(2021, 1, 1))
-        self.window.ui.endDateEdit.setDate(QDate.currentDate())
-
-        # Simulate selecting a symbol from the dropdown
-        self.window.ui.ETF_Dropdown.setCurrentIndex(0)  # Assuming the first item is valid
-
-        QTest.qWait(1000)  # Wait for the comboBox to update
-
-        # Simulate selecting a strategy from the strategyComboBox
-        self.window.ui.strategyComboBox.setCurrentIndex(0)  # Assuming the first item is valid
-
-        QTest.qWait(1000)  # Wait for the comboBox to update
-
-        # Add debug print to check if the button is being clicked
-        print("Clicking the backtest button")
-        
-        # Simulate clicking the backtest button
         QTest.mouseClick(self.window.ui.backtestButton, Qt.LeftButton)
-        print("Backtest button clicked")
+        QTest.qWait(POLL_INTERVAL_MS)
 
-        QTest.qWait(2000)  # Wait for the backtest window to open
-
-        # Verify that the backtest window is opened
-        self.assertIsNotNone(self.window.backtest_window, "Backtest window was not opened")
+        self.assertTrue(hasattr(self.window, "backtest_window"), "Backtest window was not opened")
         self.assertTrue(self.window.backtest_window.isVisible(), "Backtest window is not visible")
-
-        # Verify that the backtest results are displayed
-        # (You can add more specific checks here based on your application's behavior)
+        self.assertGreater(self.window.backtest_window.ui.backtestTable.rowCount(), 0, "Backtest table is empty")
 
     def test_download_and_update_plot(self):
-        # Simulate selecting a date range
-        self.window.ui.startDateEdit.setDate(QDate(2021, 1, 1))
-        self.window.ui.endDateEdit.setDate(QDate.currentDate())
+        self.download()
 
-        # Simulate selecting a symbol from the dropdown
-        self.window.ui.ETF_Dropdown.setCurrentIndex(0)  # Assuming the first item is valid
+        # Switching symbols after a download replots from the saved data.
+        self.window.ui.ETF_Dropdown.setCurrentIndex(1)
+        QTest.qWait(POLL_INTERVAL_MS)
 
-        # Add debug print to check if the button is being clicked
-        print("Clicking the download button")
-        
-        # Simulate clicking the download button
-        QTest.mouseClick(self.window.ui.downloadButton, Qt.LeftButton)
-        print("Download button clicked")
+        self.assertEqual(self.window.ui.ETF_Dropdown.currentIndex(), 1)
 
-        # Create an event loop to wait for the thread to finish
-        loop = QEventLoop()
-        self.window.download_thread.finished.connect(loop.quit)
-
-        # Wait for the download thread to finish
-        loop.exec_()
-
-        # Polling loop to check for download completion
-        timeout = 1500  # 5 seconds
-        interval = 100  # 100 milliseconds
-        elapsed = 0
-
-        while elapsed < timeout:
-            if self.window.ui.progressBar.maximum() == 100:
-                break
-            QTest.qWait(interval)
-            elapsed += interval
-            print("Elapsed time:", elapsed)
-
-        print("_+____Elapsed time:", elapsed)
-
-        # Check if the progress bar is set to "Complete"
-        self.assertEqual(self.window.ui.progressBar.maximum(), 1, "Download did not complete within the timeout period")
-
-        # Simulate selecting a different symbol from the dropdown
-        self.window.ui.ETF_Dropdown.setCurrentIndex(1)  # Assuming the second item is valid
-        QTest.qWait(1000)  # Wait for the comboBox to update
-
-        # Simulate selecting a different date range
-        self.window.ui.startDateEdit.setDate(QDate(2022, 1, 1))
-        self.window.ui.endDateEdit.setDate(QDate(2022, 12, 31))
-        QTest.qWait(1000)  # Wait for the date range to update
-
-        # Verify that the plot is updated
-        # (You can add more specific checks here based on your application's behavior)
 
 if __name__ == '__main__':
-    # Create a TestLoader instance
-    loader = unittest.TestLoader()
-
-    # Create a test suite and add tests in the desired order
-    suite = unittest.TestSuite()
-    suite.addTest(TestIntegration('test_select_etf_from_combobox'))
-    suite.addTest(TestIntegration('test_download_button'))
-    suite.addTest(TestIntegration('test_backtest'))
-    suite.addTest(TestIntegration('test_download_and_update_plot'))
-
-    # Run the test suite
-    runner = unittest.TextTestRunner()
-    runner.run(suite)
+    unittest.main()

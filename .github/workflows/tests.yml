@@ -26,4 +26,4 @@ jobs:
       - name: Import every app module
         run: python -c "import model, view, controller, data_access, json_adapter, yfinance_adapter, polygon_adapter, alpha_vantage_adapter, plot_utils, mpl_canvas, pubsub, decorators"
       - name: Run unit tests
-        run: python -m unittest discover -s Test -p "test.py" -v
+        run: python -m unittest discover -s Test -p "*test.py" -v
