@@ -22,7 +22,7 @@ numpy==2.5.3
 packaging==26.3
 pandas==3.0.6
 peewee==4.5.2
-pillow==12.3.0
+pillow==13.0.0
 platformdirs==4.12.3
 protobuf==7.36.2
 pyasn1==0.6.4
