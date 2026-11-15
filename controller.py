@@ -289,14 +289,14 @@ class MainWindow(QMainWindow):
         selected_ticker = self.ui.ETF_Dropdown.currentText()
         selected_strategy_name = self.ui.strategyComboBox.currentText()
         selected_strategy = strategies[selected_strategy_name]['strategy']
-        run_backtest_algorithm(selected_ticker, selected_strategy)
+        result = selected_strategy(selected_ticker)
         self.backtest_window = BacktestWindow(self)
         #self.backtest_window.show()
 
         self.backtest_window.showMaximized()
 
-        load_backtest_data(self.backtest_window)
-        plot_strategy_performance(self.backtest_window, selected_ticker, selected_strategy_name)
+        load_backtest_data(self.backtest_window, result)
+        plot_strategy_performance(self.backtest_window, selected_ticker, selected_strategy_name, result)
     # endregion
 
     # region Progress Bar Methods
@@ -308,18 +308,9 @@ class MainWindow(QMainWindow):
         QCoreApplication.processEvents()
     # endregion
 
-def run_backtest_algorithm(symbol, strategy):
-
-    """Run the selected backtest strategy."""
-    strategy(symbol)
-    results_log = pd.read_csv('results.csv')
-    return results_log
-
-def load_backtest_data(backtest_window):
-    """Load and display the backtest data in the backtest window."""
-    df = pd.read_csv('results.csv')
-    df_data = df.iloc[:-1]
-    df_results = df.iloc[-1:]
+def load_backtest_data(backtest_window, result):
+    """Display a BacktestResult's trades and summary in the backtest window."""
+    df_data = result.trade_log
 
     backtest_window.ui.backtestTable.setRowCount(len(df_data))
     backtest_window.ui.backtestTable.setColumnCount(len(df_data.columns))
@@ -336,7 +327,7 @@ def load_backtest_data(backtest_window):
                 item = QTableWidgetItem(str(value))
                 item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             elif df_data.columns[j] == 'Shares':
-                value = f"{int(value)}"
+                value = f"{int(float(value))}"
                 item = QTableWidgetItem(str(value))
                 item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             else:
@@ -348,17 +339,15 @@ def load_backtest_data(backtest_window):
     backtest_window.ui.backtestTable.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     backtest_window.ui.backtestTable.setMinimumSize(backtest_window.ui.backtestTable.sizeHint())
 
-    model = QStandardItemModel(1, 4)
-    model.setHorizontalHeaderLabels(["Total Gain/Loss", "Balance", "Total Return", "Annual Return"])
+    model = QStandardItemModel(1, len(result.summary))
+    model.setHorizontalHeaderLabels(list(result.summary))
 
-    for j, value in enumerate(df_results.iloc[0]):
-        header_item = model.horizontalHeaderItem(j)
-        if header_item:
-            if header_item.text() in ["Total Gain/Loss", "Balance"]:
-                value = f"${float(value):.2f}"
-            elif header_item.text() in ["Total Return", "Annual Return"]:
-                value = f"{float(value):.2f}%"
-        item = QStandardItem(str(value))
+    for j, (name, value) in enumerate(result.summary.items()):
+        if name in ["Total Gain/Loss", "Balance"]:
+            value = f"${float(value):.2f}"
+        else:
+            value = f"{float(value):.2f}%"
+        item = QStandardItem(value)
         item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         model.setItem(0, j, item)
 
@@ -367,13 +356,10 @@ def load_backtest_data(backtest_window):
     backtest_window.ui.resultsTable.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
     backtest_window.ui.resultsTable.setMinimumSize(backtest_window.ui.resultsTable.sizeHint())
 
-    while backtest_window.ui.resultsTable.model().columnCount() > 4:
-        backtest_window.ui.resultsTable.model().removeColumn(4)
-
-def plot_strategy_performance(backtest_window, ticker, strategy_name):
+def plot_strategy_performance(backtest_window, ticker, strategy_name, result):
     """Plot the strategy performance in the backtest window."""
-    data, transactions = load_data(ticker)
-    if data.empty or transactions.empty:
+    data = load_data(ticker)
+    if data.empty or result.transactions.empty:
         print("No data to plot.")
         return
 
@@ -383,20 +369,19 @@ def plot_strategy_performance(backtest_window, ticker, strategy_name):
     plot_function = strategies[strategy_name].get('plot')
     if plot_function:
         print(f"Plotting strategy: {strategy_name}")
-        plot_function(fig, data, transactions, ticker)
+        plot_function(fig, data, result, ticker)
     else:
         print(f"No plot function found for strategy: {strategy_name}")
 
     canvas.draw()
 
 def load_data(ticker):
-    """Load data for the given ticker."""
+    """Load price data for the given ticker from the download cache."""
     data = pd.read_json('all_symbols_data.json', convert_dates=True)
     data = data[data['Symbol'] == ticker]
     data['Date'] = pd.to_datetime(data['Date'])
     data.set_index('Date', inplace=True)
-    transactions = pd.read_csv('transactions.csv', parse_dates=['Date'])
-    return data, transactions
+    return data
 
 def setup_canvas(backtest_window):
     """Set up the canvas for plotting in the backtest window."""

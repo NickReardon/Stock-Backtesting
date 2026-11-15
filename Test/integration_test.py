@@ -35,7 +35,7 @@ class FakeYFinanceAdapter(YFinanceAdapter):
 
 class TestIntegration(unittest.TestCase):
     def setUp(self):
-        # The app reads and writes its JSON and CSV files in the working directory.
+        # The app caches downloaded prices as JSON in the working directory.
         self.original_cwd = os.getcwd()
         self.temp_dir = tempfile.TemporaryDirectory()
         os.chdir(self.temp_dir.name)

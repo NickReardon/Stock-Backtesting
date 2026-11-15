@@ -13,19 +13,16 @@ class MACDStrategy(StrategyBase):
         long_ema = data['Close'].ewm(span=26, adjust=False).mean()
         data['MACD'] = short_ema - long_ema
         data['Signal_Line'] = data['MACD'].ewm(span=9, adjust=False).mean()
-        self.save_indicator_data(data, ['MACD', 'Signal_Line'], 'macd_data.csv')
         balance, shares, trade_log, transactions = self.initialize_variables(initial_balance)
         balance, shares, trade_log, transactions = self.simulate_trades(
             data, symbol, balance, shares, trade_log, transactions,
             lambda data, i: data['MACD'].iloc[i] > data['Signal_Line'].iloc[i] and data['MACD'].iloc[i-1] <= data['Signal_Line'].iloc[i-1],
             lambda data, i: data['MACD'].iloc[i] < data['Signal_Line'].iloc[i] and data['MACD'].iloc[i-1] >= data['Signal_Line'].iloc[i-1]
         )
-        total_gain_loss, total_return, annual_return = self.calculate_final_metrics(balance, initial_balance, data)
-        self.add_summary_row(trade_log, total_gain_loss, balance, total_return, annual_return)
-        self.save_trade_data(trade_log, transactions)
+        return self.make_result(trade_log, transactions, data[['MACD', 'Signal_Line']], balance, initial_balance, data)
 
-    def plot_strategy(self, fig: plt.Figure, data: pd.DataFrame, transactions: list, ticker: str):
-        macd_data = pd.read_csv('macd_data.csv', index_col=0, parse_dates=True)
+    def plot_strategy(self, fig: plt.Figure, data: pd.DataFrame, result, ticker: str):
+        macd_data = result.indicators
         print("MACD Data Head:", macd_data.head())
         print("MACD Data Tail:", macd_data.tail())
 
@@ -37,7 +34,7 @@ class MACDStrategy(StrategyBase):
         ax2 = fig.add_subplot(212, sharex=ax1)
 
         utils.plot_stock_price(ax1, data, ticker)
-        utils.plot_buy_sell_signals(ax1, transactions)
+        utils.plot_buy_sell_signals(ax1, result.transactions)
 
         ax1.set_title(f"{ticker} MACD Strategy Performance", fontsize=utils.TITLE_FONT_SIZE)
         ax1.set_ylabel("Price", fontsize=utils.AXIS_FONT_SIZE)
@@ -69,8 +66,8 @@ class MACDStrategy(StrategyBase):
 # Ensure the strategy functions are accessible
 def execute_strategy(symbol):
     strategy = MACDStrategy()
-    strategy.execute_strategy(symbol, initial_balance=100000)
+    return strategy.execute_strategy(symbol, initial_balance=100000)
 
-def plot_strategy(fig, data, transactions, ticker):
+def plot_strategy(fig, data, result, ticker):
     strategy = MACDStrategy()
-    strategy.plot_strategy(fig, data, transactions, ticker)
+    strategy.plot_strategy(fig, data, result, ticker)
