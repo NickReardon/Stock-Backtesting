@@ -6,7 +6,7 @@ from data_access import DataAccessInterface
 
 class YFinanceAdaptee:
     def download_data(self, symbol, start_date, end_date):
-        return yf.download(symbol, start=start_date, end=end_date)
+        return yf.download(symbol, start=start_date, end=end_date, multi_level_index=False)
 
     def save_to_csv(self, data, filename):
         data.to_csv(filename)
