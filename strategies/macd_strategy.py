@@ -3,8 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from model import StrategyBase
 import plot_utils as utils
-from matplotlib.dates import AutoDateLocator, DateFormatter
-from matplotlib.ticker import MaxNLocator
 
 strategy_name = "MACD"
 
@@ -63,22 +61,8 @@ class MACDStrategy(StrategyBase):
         ax2.legend()
         ax2.grid(True)
 
-        locator = AutoDateLocator()
-        formatter = DateFormatter(utils.DATE_FORMAT)
-
-        ax1.xaxis.set_major_locator(locator)
-        ax1.xaxis.set_major_formatter(formatter)
-        ax2.xaxis.set_major_locator(locator)
-        ax2.xaxis.set_major_formatter(formatter)
-
-        # Ensure a consistent number of ticks (e.g., 24 ticks)
-        ax1.xaxis.set_major_locator(MaxNLocator(nbins=utils.NUMBER_OF_TICKS))
-        ax1.tick_params(axis='x', rotation=45, labelsize=utils.X_AXIS_TICK_FONT_SIZE)
-        ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
-
-        ax2.xaxis.set_major_locator(MaxNLocator(nbins=utils.NUMBER_OF_TICKS))
-        ax2.tick_params(axis='x', rotation=45, labelsize=utils.X_AXIS_TICK_FONT_SIZE)
-        ax2.grid(True, which='both', linestyle='--', linewidth=0.5)
+        utils.format_date_axis(ax1)
+        utils.format_date_axis(ax2)
 
         fig.subplots_adjust(bottom=0.17)
 

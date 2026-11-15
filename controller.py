@@ -5,11 +5,9 @@ import pandas as pd
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QDialog, QLabel, QMessageBox
 from PySide6.QtCore import QDate, QTimer, Signal, QCoreApplication, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
-from matplotlib.dates import AutoDateLocator, DateFormatter
-from matplotlib.ticker import MaxNLocator
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from plot_utils import DATE_FORMAT, AXIS_FONT_SIZE, TITLE_FONT_SIZE, X_AXIS_TICK_FONT_SIZE, NUMBER_OF_TICKS
+from plot_utils import TITLE_FONT_SIZE, MAIN_X_AXIS_TICK_FONT_SIZE, customize_plot, adjust_margins
 from view import Ui_MainWindow, Ui_Backtest
 from mpl_canvas import MplCanvas
 from model import strategies, DownloadThread
@@ -26,22 +24,6 @@ import yfinance_adapter as yahoo
 
 
 
-
-
-# Define constants for date format, axis font size, number of ticks, and margins
-DATE_FORMAT = '%m/%y'
-AXIS_FONT_SIZE = 10
-TITLE_FONT_SIZE = 12
-X_AXIS_TICK_FONT_SIZE = 8
-NUMBER_OF_TICKS = 24
-LEFT_MARGIN_SMALL = 0.075
-LEFT_MARGIN_LARGE = 0.12
-RIGHT_MARGIN_SMALL = 0.05
-RIGHT_MARGIN_LARGE = 0.1
-TOP_MARGIN_SMALL = 0.05
-TOP_MARGIN_LARGE = 0.1
-BOTTOM_MARGIN_LARGE = 0.2
-BOTTOM_MARGIN_SMALL = 0.1
 
 
 UPDATE_TIME = 2500  # Update every 2.5 seconds
@@ -276,7 +258,8 @@ class MainWindow(QMainWindow):
             max_y_value = self.calculate_max_y_value(all_data['Symbol'].unique())
             self.canvas.axes.set_ylim(0, max_y_value*1.1)
 
-        self.customize_plot(self.canvas.axes, ticker, "Stock Price")
+        customize_plot(self.canvas.axes, ticker, "Stock Price", legend=False, x_tick_font_size=MAIN_X_AXIS_TICK_FONT_SIZE)
+        self.canvas.axes.set_title(f"{ticker} Stock Price", fontsize=TITLE_FONT_SIZE)
         self.canvas.draw()
 
     def calculate_max_y_value(self, symbols):
@@ -298,27 +281,6 @@ class MainWindow(QMainWindow):
         selected_ticker = self.ui.ETF_Dropdown.currentText()
         self.plot_data(selected_ticker)
 
-    def customize_plot(self, ax, ticker, title):
-        """Customize the plot with labels, grid, and formatting."""
-        locator = AutoDateLocator(maxticks={
-            'YEARLY': NUMBER_OF_TICKS,
-            'MONTHLY': NUMBER_OF_TICKS,
-            'DAILY': NUMBER_OF_TICKS,
-            'HOURLY': NUMBER_OF_TICKS,
-            'MINUTELY': NUMBER_OF_TICKS,
-            'SECONDLY': NUMBER_OF_TICKS
-        })
-        formatter = DateFormatter(DATE_FORMAT)
-        ax.xaxis.set_major_locator(locator)
-        ax.xaxis.set_major_formatter(formatter)
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=NUMBER_OF_TICKS))
-        ax.tick_params(axis='x', rotation=45, labelsize=X_AXIS_TICK_FONT_SIZE)
-        ax.grid(True, which='both', linestyle='--', linewidth=0.5)
-        ax.set_title(f"{ticker} {title}", fontsize=TITLE_FONT_SIZE)
-        ax.set_xlabel("Date", fontsize=AXIS_FONT_SIZE)
-        ax.set_ylabel("Price", fontsize=AXIS_FONT_SIZE)
-        # ax.legend()
-        ax.figure.subplots_adjust(bottom=0.17)
     # endregion
 
     # region Backtest Methods
@@ -443,15 +405,6 @@ def setup_canvas(backtest_window):
     layout = QVBoxLayout(backtest_window.ui.backtestPlot)
     layout.addWidget(canvas)
     return fig, canvas
-
-def adjust_margins(fig):
-    """Adjust margins based on the current size of the canvas."""
-    width, height = fig.get_size_inches() * fig.dpi
-    left_margin = LEFT_MARGIN_LARGE if width < 800 else LEFT_MARGIN_SMALL
-    right_margin = RIGHT_MARGIN_LARGE if width < 800 else RIGHT_MARGIN_SMALL
-    top_margin = TOP_MARGIN_LARGE if height < 600 else TOP_MARGIN_SMALL
-    bottom_margin = BOTTOM_MARGIN_LARGE if height < 600 else BOTTOM_MARGIN_SMALL
-    fig.subplots_adjust(left=left_margin, bottom=bottom_margin, right=1-right_margin, top=1-top_margin)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
