@@ -4,6 +4,7 @@ from PySide6.QtCore import QThread, Signal
 import matplotlib.pyplot as plt
 import os
 import importlib
+from typing import NamedTuple
 from decimal import Decimal, getcontext
 
 class DownloadThread(QThread):
@@ -45,6 +46,13 @@ class DownloadThread(QThread):
 # Set the precision for Decimal
 getcontext().prec = 28
 
+
+class BacktestResult(NamedTuple):
+    trade_log: pd.DataFrame     # one row per trade
+    transactions: pd.DataFrame  # Date, Action, Price for plotting signals
+    indicators: pd.DataFrame    # indicator columns indexed by date
+    summary: dict               # Total Gain/Loss, Balance, Total Return, Annual Return
+
 class StrategyBase(ABC):
     def read_and_prepare_data(self, symbol):
         data = pd.read_json('all_symbols_data.json')
@@ -52,10 +60,6 @@ class StrategyBase(ABC):
         data['Date'] = pd.to_datetime(data['Date'])
         data.set_index('Date', inplace=True)
         return data
-
-    def save_indicator_data(self, data, columns, filename):
-        indicator_data = data[columns]
-        indicator_data.to_csv(filename)
 
     def initialize_variables(self, initial_balance):
         balance = Decimal(initial_balance)
@@ -79,21 +83,19 @@ class StrategyBase(ABC):
         annual_return = Decimal(float(total_return) / (len(data) / 252))  # Assuming 252 trading days in a year
         return total_gain_loss, total_return, annual_return
 
-    def add_summary_row(self, trade_log, total_gain_loss, balance, total_return, annual_return):
-        trade_log.append({
-            'Date': f"{total_gain_loss:.2f}",
-            'Symbol': f"{balance:.2f}",
-            'Action': f"{total_return:.2f}",
-            'Price': f"{annual_return:.2f}",
-            'Shares': '',
-            'Transaction Amount': '',
-            'Gain/Loss': '',
-            'Balance': ''
-        })
-
-    def save_trade_data(self, trade_log, transactions):
-        trade_log_df = pd.DataFrame(trade_log)
-        trade_log_df.to_csv('results.csv', index=False)
+    def make_result(self, trade_log, transactions, indicators, balance, initial_balance, data):
+        total_gain_loss, total_return, annual_return = self.calculate_final_metrics(balance, initial_balance, data)
+        return BacktestResult(
+            trade_log=pd.DataFrame(trade_log),
+            transactions=pd.DataFrame(transactions, columns=['Date', 'Action', 'Price']),
+            indicators=indicators,
+            summary={
+                'Total Gain/Loss': total_gain_loss,
+                'Balance': balance,
+                'Total Return': total_return,
+                'Annual Return': annual_return,
+            },
+        )
 
         transactions_df = pd.DataFrame(transactions)
         transactions_df.to_csv('transactions.csv', index=False)
@@ -151,7 +153,7 @@ class StrategyBase(ABC):
         pass
 
     @abstractmethod
-    def plot_strategy(self, fig: plt.Figure, data: pd.DataFrame, transactions: list, ticker: str):
+    def plot_strategy(self, fig: plt.Figure, data: pd.DataFrame, result: BacktestResult, ticker: str):
         pass
 
 
