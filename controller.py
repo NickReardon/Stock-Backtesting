@@ -2,27 +2,25 @@ import sys
 import logging
 import os
 import pandas as pd
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QTableWidget, QTableView, QHeaderView, QDialog, QLabel
-from PySide6.QtCore import QDate, QTimer, QThread, Signal, QCoreApplication, Qt
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QDialog, QLabel
+from PySide6.QtCore import QDate, QTimer, QCoreApplication, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from matplotlib.dates import AutoDateLocator, DateFormatter
 from matplotlib.ticker import MaxNLocator
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from plot_utils import plot_stock_price, plot_buy_sell_signals, DATE_FORMAT, AXIS_FONT_SIZE, TITLE_FONT_SIZE, X_AXIS_TICK_FONT_SIZE, NUMBER_OF_TICKS
+from plot_utils import DATE_FORMAT, AXIS_FONT_SIZE, TITLE_FONT_SIZE, X_AXIS_TICK_FONT_SIZE, NUMBER_OF_TICKS
 from view import Ui_MainWindow, Ui_Backtest
 from mpl_canvas import MplCanvas
 from model import strategies, DownloadThread
 from pubsub import PubSub
 import random
-from decorators import PlotDecorator
 import json
 import boto3
 from botocore.exceptions import BotoCoreError
 
 #Data Adapters
 import yfinance_adapter as yahoo
-#import json_adapter as json
 #import alpha_vantage_adapter as alpha
 
 
@@ -70,8 +68,7 @@ class MainWindow(QMainWindow):
         self.updateTime = UPDATE_TIME
 
         # Set up the canvas for plotting
-        base_canvas = MplCanvas(self, width=5, height=4, dpi=100)
-        self.canvas = PlotDecorator(base_canvas, customize_plot=True, adjust_margins=True)
+        self.canvas = MplCanvas(self, width=5, height=4, dpi=100)
 
         layout = QVBoxLayout(self.ui.plotWidget)
         layout.addWidget(self.canvas)
@@ -90,15 +87,6 @@ class MainWindow(QMainWindow):
 
         # Update the status bar immediately
         self.update_live_price(0, 0)
-
-    def plot_data(self, ticker):
-        """Plot the data for the selected ticker."""
-        data, transactions = load_data(ticker)
-        if data.empty or transactions.empty:
-            print("No data to plot.")
-            return
-
-        self.canvas.plot(plot_stock_price, data, transactions, ticker)
 
     def simulate_live_price_updates(self):
 
