@@ -8,6 +8,7 @@ from decimal import Decimal, getcontext
 
 class DownloadThread(QThread):
     download_complete = Signal()
+    download_failed = Signal(str)
 
     def __init__(self, symbols, start_date, end_date, data_access, parent=None):
         super().__init__(parent)
@@ -38,6 +39,7 @@ class DownloadThread(QThread):
             self.download_complete.emit()
         except Exception as e:
             print(f"Error during data download: {e}")
+            self.download_failed.emit(str(e))
             
 
 # Set the precision for Decimal
@@ -102,6 +104,7 @@ class StrategyBase(ABC):
             transaction_amount = shares_to_buy * Decimal(data['Close'].iloc[i])
             balance -= transaction_amount
             shares += shares_to_buy
+            self._cost_basis = getattr(self, '_cost_basis', Decimal(0)) + transaction_amount
             trade_log.append({
                 'Date': data.index[i],
                 'Symbol': symbol,
@@ -122,7 +125,8 @@ class StrategyBase(ABC):
     def sell(self, data, i, symbol, balance, shares, trade_log, transactions):
         if shares > 0:
             transaction_amount = shares * Decimal(data['Close'].iloc[i])
-            gain_loss = transaction_amount - (shares * Decimal(data['Close'].iloc[i-1]))
+            gain_loss = transaction_amount - getattr(self, '_cost_basis', Decimal(0))
+            self._cost_basis = Decimal(0)
             balance += transaction_amount
             trade_log.append({
                 'Date': data.index[i],

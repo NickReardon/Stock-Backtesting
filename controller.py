@@ -2,8 +2,8 @@ import sys
 import logging
 import os
 import pandas as pd
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QDialog, QLabel
-from PySide6.QtCore import QDate, QTimer, QCoreApplication, Qt
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QDialog, QLabel, QMessageBox
+from PySide6.QtCore import QDate, QTimer, Signal, QCoreApplication, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from matplotlib.dates import AutoDateLocator, DateFormatter
 from matplotlib.ticker import MaxNLocator
@@ -17,7 +17,8 @@ from pubsub import PubSub
 import random
 import json
 import boto3
-from botocore.exceptions import BotoCoreError
+from botocore.exceptions import BotoCoreError, ClientError
+from concurrent.futures import ThreadPoolExecutor
 
 #Data Adapters
 import yfinance_adapter as yahoo
@@ -88,31 +89,49 @@ class MainWindow(QMainWindow):
         # Update the status bar immediately
         self.update_live_price(0, 0)
 
+    # Emitted from the Lambda worker thread; delivered on the GUI thread.
+    _lambda_price = Signal(float, float)
+
     def simulate_live_price_updates(self):
+        self._lambda_client = None
+        self._lambda_future = None
+        self._lambda_executor = ThreadPoolExecutor(max_workers=1)
+        self._lambda_price.connect(
+            lambda price, delta: self.pubsub.notify("price_update", price, delta),
+            Qt.QueuedConnection,
+        )
 
         self.timer = QTimer(self)
-
-        
         self.timer.timeout.connect(self.generate_fake_price_update_from_lambda)
-
         #self.timer.timeout.connect(self.check_and_generate_fake_price_update)
-
-        self.timer.start(UPDATE_TIME)  
+        self.timer.start(UPDATE_TIME)
 
     def generate_fake_price_update_from_lambda(self):
-        """Fetch an optional price delta without embedding AWS credentials."""
+        """Queue an optional Lambda price delta fetch off the GUI thread."""
         if not LAMBDA_ENABLED:
             return
+        if self._lambda_future is not None and not self._lambda_future.done():
+            return  # previous request still in flight; skip this tick
+        self._lambda_future = self._lambda_executor.submit(
+            self._fetch_lambda_price, self.ui.ETF_Dropdown.currentText()
+        )
 
-        selected_ticker = self.ui.ETF_Dropdown.currentText()
-        data = pd.read_json("all_symbols_data.json", orient="records")
-        new_price = data.loc[data["Symbol"] == selected_ticker, "Close"].iloc[-1]
+    def _fetch_lambda_price(self, selected_ticker):
+        """Worker thread: invoke the Lambda and emit the result without embedding AWS credentials."""
+        try:
+            data = pd.read_json("all_symbols_data.json", orient="records")
+            new_price = float(data.loc[data["Symbol"] == selected_ticker, "Close"].iloc[-1])
+        except (ValueError, KeyError, IndexError) as error:
+            logging.warning("No local price for %s: %s", selected_ticker, error)
+            return
 
         try:
             # boto3 uses its standard credential chain: SSO/profile, environment,
-            # workload identity, or an attached IAM role.
-            lambda_client = boto3.client("lambda", region_name=AWS_REGION)
-            response = lambda_client.invoke(
+            # workload identity, or an attached IAM role. Only this single worker
+            # thread touches the client, so lazy creation needs no lock.
+            if self._lambda_client is None:
+                self._lambda_client = boto3.client("lambda", region_name=AWS_REGION)
+            response = self._lambda_client.invoke(
                 FunctionName=LAMBDA_FUNCTION_NAME,
                 InvocationType="RequestResponse",
                 Payload=json.dumps({
@@ -121,7 +140,7 @@ class MainWindow(QMainWindow):
                 })
             )
             result = json.loads(response["Payload"].read().decode("utf-8"))
-        except BotoCoreError as error:
+        except (BotoCoreError, ClientError, ValueError) as error:
             logging.warning("AWS Lambda price update unavailable: %s", error)
             return
 
@@ -132,9 +151,9 @@ class MainWindow(QMainWindow):
             except json.JSONDecodeError:
                 body = None
 
-        if isinstance(body, dict) and "delta" in body:
-            delta = body["delta"]
-            self.pubsub.notify("price_update", new_price + delta, delta)
+        if isinstance(body, dict) and isinstance(body.get("delta"), (int, float)):
+            delta = float(body["delta"])
+            self._lambda_price.emit(new_price + delta, delta)
         else:
             logging.warning("AWS Lambda response did not contain a valid delta")
 
@@ -207,6 +226,7 @@ class MainWindow(QMainWindow):
         #data_access = aa.AlphaVantageAdapter()  # Use the AlphaAdvantageAdapter for data access
         self.download_thread = DownloadThread(symbols, start_date, end_date, self.data_access)
         self.download_thread.download_complete.connect(self.on_download_complete)
+        self.download_thread.download_failed.connect(self.on_download_failed)
         self.download_thread.start()
 
     def on_download_complete(self):
@@ -219,6 +239,12 @@ class MainWindow(QMainWindow):
         self.generate_fake_price_update_from_lambda()
 
         self.ui.backtestButton.setEnabled(True)
+
+    def on_download_failed(self, message):
+        """Stop the busy progress bar and report the download error."""
+        self.ui.progressBar.setVisible(False)
+        self.ui.backtestButton.setEnabled(False)
+        QMessageBox.warning(self, "Download failed", message)
 
     def complete_progress_bar(self):
         """Complete the progress bar animation."""

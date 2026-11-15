@@ -1,23 +1,25 @@
+import os
 import pandas as pd
 import requests
 from data_access import DataAccessInterface
 
 class AlphaVantageAdaptee:
     def fetch_data(self, symbol, function, outputsize='full'):
+        api_key = os.environ.get("ALPHA_VANTAGE_API_KEY")
+        if not api_key:
+            raise RuntimeError("ALPHA_VANTAGE_API_KEY environment variable is not set.")
         url = f"https://www.alphavantage.co/query"
         params = {
             "function": function,
             "symbol": symbol,
-            "apikey": "9NVDVP4A9JYY8IFN",
+            "apikey": api_key,
             "outputsize": outputsize,
             "datatype": "json"
         }
         response = requests.get(url, params=params)
         response.raise_for_status()
         
-        # Debugging: Print the JSON response
         json_response = response.json()
-        print("JSON response:", json_response)
         
         # Extract the time series data
         time_series_key = 'Time Series (Daily)'
@@ -57,7 +59,6 @@ class AlphaVantageAdapter(DataAccessInterface):
     def fetch_data(self, symbol, start_date, end_date):
         data = self.adaptee.fetch_data(symbol, "TIME_SERIES_DAILY", outputsize='full')
         filtered_data = data[(data['Date'] >= start_date) & (data['Date'] <= end_date)]
-        print(filtered_data)
         return filtered_data
 
     def save_data(self, data, filename):

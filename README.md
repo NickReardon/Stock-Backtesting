@@ -2,16 +2,29 @@
 
 ## Setup
 
-```sh
-python3 -m venv env
-source env/bin/activate
-python3 -m pip install -r requirements.txt
-# Install the AWS CLI separately if Lambda updates are enabled.
-python3 controller.py
-deactivate
+Run these commands from the repository root. CI uses Python 3.12. The Windows commands below use Python 3.14.
+
+### Windows (PowerShell)
+
+```powershell
+py -3.14 -m venv env
+.\env\Scripts\python.exe -m pip install -r requirements.txt
+.\env\Scripts\python.exe controller.py
 ```
 
+### Linux
+
+```sh
+python3 -m venv env
+./env/bin/python -m pip install -r requirements.txt
+./env/bin/python controller.py
+```
+
+For later launches, run only the last command for your platform from the repository root.
+
 ## Optional AWS Lambda price updates
+
+Install the AWS CLI separately if Lambda updates are enabled.
 
 AWS-backed live price deltas are disabled by default. To enable them, use
 short-lived credentials from AWS IAM Identity Center, an assumed role, or an
@@ -40,6 +53,5 @@ The Lambda execution policy should allow only the required
 ## Testing
 
 ```sh
-python3 -m unittest test.py
-python3 -m unittest integration_test.py
+python -m unittest discover -s Test -p "test*.py" -v
 ```
