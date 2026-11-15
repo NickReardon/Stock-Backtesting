@@ -97,9 +97,6 @@ class StrategyBase(ABC):
             },
         )
 
-        transactions_df = pd.DataFrame(transactions)
-        transactions_df.to_csv('transactions.csv', index=False)
-
     def buy(self, data, i, symbol, balance, shares, trade_log, transactions):
         shares_to_buy = balance // Decimal(data['Close'].iloc[i])
         if shares_to_buy > 0:
