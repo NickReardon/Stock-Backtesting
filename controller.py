@@ -2,7 +2,7 @@ import sys
 import logging
 import os
 import pandas as pd
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QTableWidget, QTableView, QHeaderView, QDialog, QLabel
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QSizePolicy, QTableWidgetItem, QTableWidget, QTableView, QHeaderView, QDialog, QLabel, QMessageBox
 from PySide6.QtCore import QDate, QTimer, QThread, Signal, QCoreApplication, Qt
 from PySide6.QtGui import QStandardItemModel, QStandardItem
 from matplotlib.dates import AutoDateLocator, DateFormatter
@@ -219,6 +219,7 @@ class MainWindow(QMainWindow):
         #data_access = aa.AlphaVantageAdapter()  # Use the AlphaAdvantageAdapter for data access
         self.download_thread = DownloadThread(symbols, start_date, end_date, self.data_access)
         self.download_thread.download_complete.connect(self.on_download_complete)
+        self.download_thread.download_failed.connect(self.on_download_failed)
         self.download_thread.start()
 
     def on_download_complete(self):
@@ -231,6 +232,12 @@ class MainWindow(QMainWindow):
         self.generate_fake_price_update_from_lambda()
 
         self.ui.backtestButton.setEnabled(True)
+
+    def on_download_failed(self, message):
+        """Stop the busy progress bar and report the download error."""
+        self.ui.progressBar.setVisible(False)
+        self.ui.backtestButton.setEnabled(False)
+        QMessageBox.warning(self, "Download failed", message)
 
     def complete_progress_bar(self):
         """Complete the progress bar animation."""

@@ -10,6 +10,7 @@ from decimal import Decimal, getcontext
 
 class DownloadThread(QThread):
     download_complete = Signal()
+    download_failed = Signal(str)
 
     def __init__(self, symbols, start_date, end_date, data_access, parent=None):
         super().__init__(parent)
@@ -40,6 +41,7 @@ class DownloadThread(QThread):
             self.download_complete.emit()
         except Exception as e:
             print(f"Error during data download: {e}")
+            self.download_failed.emit(str(e))
             
 
         # def __init__(self, symbols, start_date, end_date, parent=None):
