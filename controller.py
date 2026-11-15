@@ -17,6 +17,10 @@ import json
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 from concurrent.futures import ThreadPoolExecutor
+from dotenv import load_dotenv
+
+# Load settings from a local .env (gitignored). Existing environment variables win.
+load_dotenv()
 
 #Data Adapters
 import yfinance_adapter as yahoo
