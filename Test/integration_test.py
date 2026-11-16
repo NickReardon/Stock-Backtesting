@@ -100,6 +100,20 @@ class TestIntegration(unittest.TestCase):
 
         self.assertEqual(self.window.ui.ETF_Dropdown.currentIndex(), 1)
 
+    def test_symbol_without_data_is_skipped(self):
+        # The selected symbol (index 0) has no data for the range; the other still loads.
+        missing = self.window.ui.ETF_Dropdown.itemText(0)
+        fake = self.window.data_access
+        real_fetch = fake.fetch_data
+        fake.fetch_data = lambda symbol, start, end: real_fetch(symbol, start, end).iloc[0:0] if symbol == missing else real_fetch(symbol, start, end)
+
+        self.download()
+
+        dropdown = self.window.ui.ETF_Dropdown
+        self.assertFalse(dropdown.model().item(0).isEnabled(), "Symbol without data should be disabled")
+        self.assertEqual(dropdown.currentIndex(), 1, "Selection should move to a symbol with data")
+        self.assertTrue(self.window.ui.backtestButton.isEnabled())
+
 
 if __name__ == '__main__':
     unittest.main()

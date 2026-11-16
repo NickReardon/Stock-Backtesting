@@ -215,8 +215,17 @@ class MainWindow(QMainWindow):
         self.download_thread.download_failed.connect(self.on_download_failed)
         self.download_thread.start()
 
-    def on_download_complete(self):
+    def on_download_complete(self, skipped):
         """Handle actions after download is complete."""
+        # Grey out symbols with no data so they can't be plotted or backtested.
+        dropdown = self.ui.ETF_Dropdown
+        for i in range(dropdown.count()):
+            dropdown.model().item(i).setEnabled(dropdown.itemText(i) not in skipped)
+        if dropdown.currentText() in skipped:
+            dropdown.setCurrentIndex(next(i for i in range(dropdown.count()) if dropdown.itemText(i) not in skipped))
+        if skipped:
+            self.statusBar().showMessage(f"No data for {', '.join(skipped)} in this date range; skipped.", 10000)
+
         selected_ticker = self.ui.ETF_Dropdown.currentText()
         self.plot_data(selected_ticker)
         QTimer.singleShot(500, self.complete_progress_bar)

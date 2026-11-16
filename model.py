@@ -8,7 +8,7 @@ from typing import NamedTuple
 from decimal import Decimal, getcontext
 
 class DownloadThread(QThread):
-    download_complete = Signal()
+    download_complete = Signal(list)  # symbols skipped because the source had no data for the range
     download_failed = Signal(str)
 
     def __init__(self, symbols, start_date, end_date, data_access, parent=None):
@@ -20,10 +20,15 @@ class DownloadThread(QThread):
 
     def run(self):
         all_data = []
+        skipped = []
         try:
             for ticker in self.symbols:
                 print(f"Fetching data for {ticker}...")
                 data = self.data_access.fetch_data(ticker, self.start_date, self.end_date)
+                if data.empty:
+                    print(f"No data for {ticker} in this date range; skipping.")
+                    skipped.append(ticker)
+                    continue
                 data_to_save = data[['Open', 'High', 'Low', 'Close', 'Volume']]
                 data_to_save.reset_index(inplace=True)
                 data_to_save['Date'] = data_to_save['Date'].dt.strftime('%Y-%m-%d')
@@ -31,13 +36,16 @@ class DownloadThread(QThread):
                 all_data.append(data_to_save)
                 print(f"Data for {ticker} fetched and processed.")
 
+            if not all_data:
+                raise ValueError(f"No data for any symbol between {self.start_date} and {self.end_date}.")
+
             combined_data = pd.concat(all_data, ignore_index=True)
             print("Combined data")
 
             self.data_access.save_data_as_json(combined_data, "all_symbols_data.json")
             print("Data saved to all_symbols_data.json")
 
-            self.download_complete.emit()
+            self.download_complete.emit(skipped)
         except Exception as e:
             print(f"Error during data download: {e}")
             self.download_failed.emit(str(e))
